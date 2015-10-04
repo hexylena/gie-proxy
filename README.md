@@ -28,4 +28,4 @@ Eric Rasche <esr@tamu.edu>
 
 Based on code from https://github.com/akrennmair/drunken-hipster, however a
 substantial rewrite took place, leaving only a small portion of the original
-code base intact (util.go, logging.go).
+code base intact (the copy functions in util.go).
