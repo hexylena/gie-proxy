@@ -99,3 +99,16 @@ func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWri
 	<-finished
 	<-finished
 }
+
+func addForwardedFor(r *http.Request) *http.Request {
+	remote_addr := r.RemoteAddr
+	idx := strings.LastIndex(remote_addr, ":")
+	if idx != -1 {
+		remote_addr = remote_addr[0:idx]
+		if remote_addr[0] == '[' && remote_addr[len(remote_addr)-1] == ']' {
+			remote_addr = remote_addr[1 : len(remote_addr)-1]
+		}
+	}
+	r.Header.Add("X-Forwarded-For", remote_addr)
+	return r
+}
