@@ -143,7 +143,6 @@ func (h *ApiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fmt.Fprintf(w, string(jsonRoutes))
-
 	}
 }
 
