@@ -23,7 +23,13 @@ balancer, resulting in a binary named `gxproxy`
 
 ## Configuration
 
-TODO!
+```
+-api_key="THE_DEFAULT_IS_NOT_SECURE": Key to access the API
+-cookie_name="galaxysession": cookie name
+-listen="0.0.0.0:8080": address to listen on
+-listen_path="/galaxy/gie_proxy": path to listen on (for cookies)
+-storage="./session_map.json": Session map file. Used to (re)store route lists across restarts
+```
 
 ## License
 
