@@ -19,16 +19,16 @@ type RequestHandler struct {
 
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("incoming request: %#v", *r)
-	r.RequestURI = ""
 	r.URL.Scheme = "http"
 
 	r = addForwardedFor(r)
 
 	// Pick out route
-	route, err := h.RouteMapping.FindRoute("", "")
+	route, err := h.RouteMapping.FindRoute(r.RequestURI, "")
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
+	r.RequestURI = ""
 	r.URL.Host = route.BackendUrl
 
 	upgrade_websocket := shouldUpgradeWebsocket(r)
@@ -47,7 +47,7 @@ func main() {
 
 	r1 := &Route{
 		FrontendPath:     "/hello",
-		BackendUrl:       "http://localhost:8080",
+		BackendUrl:       "localhost:8080",
 		AuthorizedCookie: "test",
 	}
 
