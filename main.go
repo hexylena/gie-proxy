@@ -48,6 +48,45 @@ func shouldUpgradeWebsocket(r *http.Request) bool {
 	return upgrade_websocket
 }
 
+func plumbWebsocket(w http.ResponseWriter, r *http.Request) {
+	hj, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
+		return
+	}
+	conn, bufrw, err := hj.Hijack()
+	defer conn.Close()
+	conn2, err := net.Dial("tcp", r.URL.Host)
+	if err != nil {
+		http.Error(w, "couldn't connect to backend server", http.StatusServiceUnavailable)
+		return
+	}
+	defer conn2.Close()
+	err = r.Write(conn2)
+	if err != nil {
+		log.Printf("writing WebSocket request to backend server failed: %v", err)
+		return
+	}
+	CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)))
+}
+
+func plumbHttp(h *RequestHandler, w http.ResponseWriter, r *http.Request) {
+	resp, err := h.Transport.RoundTrip(r)
+	if err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprintf(w, "Error: %v", err)
+		return
+	}
+	for k, v := range resp.Header {
+		for _, vv := range v {
+			w.Header().Add(k, vv)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+	resp.Body.Close()
+}
+
 func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
 	buf := make([]byte, 40*1024)
 	for {
@@ -122,42 +161,13 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			backend_list <- backend
 		}
 	}
+
 	upgrade_websocket := shouldUpgradeWebsocket(r)
+
 	if upgrade_websocket {
-		hj, ok := w.(http.Hijacker)
-		if !ok {
-			http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
-			return
-		}
-		conn, bufrw, err := hj.Hijack()
-		defer conn.Close()
-		conn2, err := net.Dial("tcp", r.URL.Host)
-		if err != nil {
-			http.Error(w, "couldn't connect to backend server", http.StatusServiceUnavailable)
-			return
-		}
-		defer conn2.Close()
-		err = r.Write(conn2)
-		if err != nil {
-			log.Printf("writing WebSocket request to backend server failed: %v", err)
-			return
-		}
-		CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)))
+		plumbWebsocket(w, r)
 	} else {
-		resp, err := h.Transport.RoundTrip(r)
-		if err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintf(w, "Error: %v", err)
-			return
-		}
-		for k, v := range resp.Header {
-			for _, vv := range v {
-				w.Header().Add(k, vv)
-			}
-		}
-		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
-		resp.Body.Close()
+		plumbHttp(h, w, r)
 	}
 }
 func usage() {
