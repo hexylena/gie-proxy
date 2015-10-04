@@ -17,7 +17,6 @@ type Backend struct {
 	Name          string
 	ConnectString string
 }
-
 type Frontend struct {
 	Name         string
 	BindString   string
@@ -28,6 +27,25 @@ type Frontend struct {
 	//AddHeader    struct { Key string; Value string }
 	KeyFile  string
 	CertFile string
+}
+
+func shouldUpgradeWebsocket(r *http.Request) bool {
+	conn_hdr := ""
+	conn_hdrs := r.Header["Connection"]
+	log.Printf("Connection headers: %v", conn_hdrs)
+	if len(conn_hdrs) > 0 {
+		conn_hdr = conn_hdrs[0]
+	}
+	upgrade_websocket := false
+	if strings.ToLower(conn_hdr) == "upgrade" {
+		log.Printf("got Connection: Upgrade")
+		upgrade_hdrs := r.Header["Upgrade"]
+		log.Printf("Upgrade headers: %v", upgrade_hdrs)
+		if len(upgrade_hdrs) > 0 {
+			upgrade_websocket = (strings.ToLower(upgrade_hdrs[0]) == "websocket")
+		}
+	}
+	return upgrade_websocket
 }
 
 func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
@@ -45,10 +63,8 @@ func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
 		dest.Flush()
 	}
 }
-
 func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWriteCloser, rw2 *bufio.ReadWriter) {
 	finished := make(chan bool)
-
 	go func() {
 		Copy(rw2, rw1)
 		conn2.Close()
@@ -59,7 +75,6 @@ func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWri
 		conn1.Close()
 		finished <- true
 	}()
-
 	<-finished
 	<-finished
 }
@@ -75,7 +90,6 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//log.Printf("incoming request: %#v", *r)
 	r.RequestURI = ""
 	r.URL.Scheme = "http"
-
 	if h.Frontend.AddForwarded {
 		remote_addr := r.RemoteAddr
 		idx := strings.LastIndex(remote_addr, ":")
@@ -87,7 +101,6 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		r.Header.Add("X-Forwarded-For", remote_addr)
 	}
-
 	if len(h.Frontend.Hosts) == 0 {
 		backend := <-h.Backends
 		r.URL.Host = backend.ConnectString
@@ -109,96 +122,62 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			backend_list <- backend
 		}
 	}
-
-	conn_hdr := ""
-	conn_hdrs := r.Header["Connection"]
-	log.Printf("Connection headers: %v", conn_hdrs)
-	if len(conn_hdrs) > 0 {
-		conn_hdr = conn_hdrs[0]
-	}
-
-	upgrade_websocket := false
-	if strings.ToLower(conn_hdr) == "upgrade" {
-		log.Printf("got Connection: Upgrade")
-		upgrade_hdrs := r.Header["Upgrade"]
-		log.Printf("Upgrade headers: %v", upgrade_hdrs)
-		if len(upgrade_hdrs) > 0 {
-			upgrade_websocket = (strings.ToLower(upgrade_hdrs[0]) == "websocket")
-		}
-	}
-
+	upgrade_websocket := shouldUpgradeWebsocket(r)
 	if upgrade_websocket {
 		hj, ok := w.(http.Hijacker)
-
 		if !ok {
 			http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
 			return
 		}
-
 		conn, bufrw, err := hj.Hijack()
 		defer conn.Close()
-
 		conn2, err := net.Dial("tcp", r.URL.Host)
 		if err != nil {
 			http.Error(w, "couldn't connect to backend server", http.StatusServiceUnavailable)
 			return
 		}
 		defer conn2.Close()
-
 		err = r.Write(conn2)
 		if err != nil {
 			log.Printf("writing WebSocket request to backend server failed: %v", err)
 			return
 		}
-
 		CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)))
-
 	} else {
-
 		resp, err := h.Transport.RoundTrip(r)
 		if err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintf(w, "Error: %v", err)
 			return
 		}
-
 		for k, v := range resp.Header {
 			for _, vv := range v {
 				w.Header().Add(k, vv)
 			}
 		}
-
 		w.WriteHeader(resp.StatusCode)
-
 		io.Copy(w, resp.Body)
 		resp.Body.Close()
 	}
 }
-
 func usage() {
 	fmt.Fprintf(os.Stdout, "usage: %s -config=<configfile>\n", os.Args[0])
 	os.Exit(1)
 }
-
 func main() {
 	var cfgfile *string = flag.String("config", "", "configuration file")
-
 	backends := make(map[string]*Backend)
 	hosts := make(map[string][]*Backend)
 	frontends := make(map[string]*Frontend)
-
 	flag.Parse()
-
 	if *cfgfile == "" {
 		usage()
 	}
-
 	cfg, err := goconf.ReadConfigFile(*cfgfile)
 	if err != nil {
 		log.Printf("opening %s failed: %v", *cfgfile, err)
 		os.Exit(1)
 	}
-
 	var access_f io.WriteCloser
 	accesslog_file, err := cfg.GetString("global", "accesslog")
 	if err == nil {
@@ -209,7 +188,6 @@ func main() {
 			log.Printf("Opening access log %s failed: %v", accesslog_file, err)
 		}
 	}
-
 	// first, extract backends
 	for _, section := range cfg.GetSections() {
 		if strings.HasPrefix(section, "backend ") {
@@ -227,7 +205,6 @@ func main() {
 			backends[b.Name] = b
 		}
 	}
-
 	// then extract hosts
 	for _, section := range cfg.GetSections() {
 		if strings.HasPrefix(section, "host ") {
@@ -255,7 +232,6 @@ func main() {
 			}
 		}
 	}
-
 	// and finally, extract frontends
 	for _, section := range cfg.GetSections() {
 		if strings.HasPrefix(section, "frontend ") {
@@ -264,9 +240,7 @@ func main() {
 				log.Printf("frontend section has no name, ignoring.")
 				continue
 			}
-
 			frontend_name := tokens[1]
-
 			frontend := &Frontend{}
 			frontend.Name = frontend_name
 			frontend.BindString, err = cfg.GetString(section, "bind")
@@ -278,12 +252,10 @@ func main() {
 				log.Printf("frontend %s has no bind argument, ignoring.", frontend_name)
 				continue
 			}
-
 			frontend.HTTPS, err = cfg.GetBool(section, "https")
 			if err != nil {
 				frontend.HTTPS = false
 			}
-
 			if frontend.HTTPS {
 				frontend.KeyFile, err = cfg.GetString(section, "keyfile")
 				if err != nil {
@@ -294,7 +266,6 @@ func main() {
 					log.Printf("frontend %s has HTTPS enabled but no keyfile, ignoring.", frontend_name)
 					continue
 				}
-
 				frontend.CertFile, err = cfg.GetString(section, "certfile")
 				if err != nil {
 					log.Printf("error while getting[%s]certfile: %v, ignoring.", section, err)
@@ -305,28 +276,22 @@ func main() {
 					continue
 				}
 			}
-
 			frontend_hosts, err := cfg.GetString(section, "hosts")
 			if err == nil && frontend_hosts != "" {
 				frontend.Hosts = strings.Split(frontend_hosts, " ")
 			}
-
 			frontend_backends, err := cfg.GetString(section, "backends")
 			if err == nil && frontend_backends != "" {
 				frontend.Backends = strings.Split(frontend_backends, " ")
 			}
-
 			frontend.AddForwarded, _ = cfg.GetBool(section, "add-x-forwarded-for")
-
 			if len(frontend.Backends) == 0 && len(frontend.Hosts) == 0 {
 				log.Printf("frontend %s has neither backends nor hosts configured, ignoring.", frontend_name)
 				continue
 			}
-
 			frontends[frontend_name] = frontend
 		}
 	}
-
 	count := 0
 	exit_chan := make(chan int)
 	for name, frontend := range frontends {
@@ -343,18 +308,14 @@ func main() {
 		}(frontend, name)
 		count++
 	}
-
 	// this shouldn't return
 	for i := 0; i < count; i++ {
 		<-exit_chan
 	}
 }
-
 func (f *Frontend) Start(hosts map[string][]*Backend, backends map[string]*Backend, logger *log.Logger) {
 	mux := http.NewServeMux()
-
 	hosts_chans := make(map[string]chan *Backend)
-
 	for _, h := range f.Hosts {
 		host_chan := make(chan *Backend, len(hosts[h]))
 		for _, b := range hosts[h] {
@@ -362,23 +323,16 @@ func (f *Frontend) Start(hosts map[string][]*Backend, backends map[string]*Backe
 		}
 		hosts_chans[h] = host_chan
 	}
-
 	backends_chan := make(chan *Backend, len(f.Backends))
-
 	for _, b := range f.Backends {
 		backends_chan <- backends[b]
 	}
-
 	var request_handler http.Handler = &RequestHandler{Transport: &http.Transport{DisableKeepAlives: false, DisableCompression: false}, Frontend: f, HostBackends: hosts_chans, Backends: backends_chan}
-
 	if logger != nil {
 		request_handler = NewRequestLogger(request_handler, *logger)
 	}
-
 	mux.Handle("/", request_handler)
-
 	srv := &http.Server{Handler: mux, Addr: f.BindString}
-
 	if f.HTTPS {
 		if err := srv.ListenAndServeTLS(f.CertFile, f.KeyFile); err != nil {
 			log.Printf("Starting HTTPS frontend %s failed: %v", f.Name, err)
