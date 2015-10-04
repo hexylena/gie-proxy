@@ -1,116 +1,31 @@
-drunken-hipster
-===============
+# GIE Proxy
 
-drunken-hipster is a WebSocket-aware SSL-capable HTTP reverse proxy/load
-balancer.
+The Galaxy Interactive Environments proxy is a websocket aware HTTP proxy with
+cookie based authentication
 
-Building
---------
+# Building
 
 First, make sure you have the Go build environment correctly installed. See
 http://golang.org/ for more information.
 
 Then run "make". This will in turn call the go utility to build the load
-balancer, resulting in a binary named hipsterd.
+balancer, resulting in a binary named `gxproxy`
 
 
-Configuration
--------------
+# Configuration
 
-The principle of drunken-hipster is simple: you define one or more frontends
-(i.e. the interface and port on which it shall listen on), and connect each
-frontend with one or more backends (i.e. the IP address or host and port it
-shall connect to). Requests that are received by the frontend are then
-forwarded to each of the backends in a round-robin fashion, and the responses
-will be sent back to the client.
+TODO!
 
-Alternatively, you can define a frontend that handles a number of hostnames, as
-indicated by the HTTP `Host` request header. For each hostname, you can again
-define one or more backends. If a request is encountered with a `Host` header that
-doesn't match any of the configured hostnames, the list of backends directly
-associated with the frontend is used instead.
+# License
 
-Confused? Let's take a look at a simple configuration example:
+MIT Licensed. Forked and rewriten from
+[upstream](https://github.com/akrennmair/drunken-hipster). See the file LICENSE
+for license information.
 
-	[frontend frontend1]
-	bind = 0.0.0.0:9000
-	backends = backend1
+# Author
 
-	[backend backend1]
-	connect = 127.0.0.1:8000
+Eric Rasche <esr@tamu.edu>
 
-This is probably the simplest example possible. It defines a frontend that
-binds to `0.0.0.0:9000`, and forwards all its incoming requests to only one
-backend. This backend will send these forwarded requests to `127.0.0.1:9000`.
-
-Now let's show a more complicated, host-based configuration:
-
-	[frontend frontend1]
-	bind = 0.0.0.0:9000
-	hosts = example.com www.example.com foobar.com www.foobar.com
-	backends = fallback
-
-	[host example.com www.example.com]
-	backends = backend1
-
-	[host foobar.com www.foobar.com]
-	backends = backend2
-
-	[backend backend1]
-	connect = 127.0.0.1:8000
-
-	[backend backend2]
-	connect = 192.168.0.1:8000
-
-	[backend fallback]
-	connect = 192.168.0.2:7000
-
-The frontend binds to `0.0.0.0:9000`, and handles rquests with the `Host` headers
-example.com, www.example.com, foobar.com and www.foobar.com. All other requests
-are handled by the backend `fallback` and forwarded to `192.168.0.2:7000`.
-Requests for example.com and www.example.com are handled by `backend1`, which
-in turns forwards the requests to `127.0.0.1:8000`, while requests for foobar.com
-and www.foobar.com are forwarded by "backend2" to `192.168.0.1:8000`.
-
-If you want to have the original client's IP address forwarded to your backend
-servers, you can optionally enable `X-Forwarded-For` headers:
-
-	[frontend foo]
-	bind = 0.0.0.0:8000
-	backends = bar baz quux
-	add-x-forwarded-for = true
-
-drunken-hipster also supports WebSockets out of the box. No special
-configuration is necessary. WebSockets are recognized by the `Connection:
-upgrade` and `Upgrade: websocket` HTTP requests headers.
-
-HTTPS Support
--------------
-
-You can enable HTTPS support for a frontend in the following way:
-
-	[frontend my-frontend]
-	bind = [::]:443
-	https = true
-	keyfile = /path/to/key.pem
-	certfile = /path/to/cert.pem
-
-Logging
--------
-
-If you want to write an access log for all HTTP requests that happen on all frontends,
-set the desired target file in the `global` section:
-
-	[global]
-	accesslog = /var/log/hipsterd.access.log
-
-License
--------
-
-See the file LICENSE for license information.
-
-
-Author
-------
-
-Andreas Krennmair <ak@synflood.at>
+Based on code from https://github.com/akrennmair/drunken-hipster, however a
+substantial rewrite took place, leaving only a small portion of the original
+code base intact (util.go, logging.go).
