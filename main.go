@@ -94,20 +94,12 @@ func (h *RequestHandler2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func usage() {
-	fmt.Fprintf(os.Stdout, "usage: %s -config=<configfile>\n", os.Args[0])
-	os.Exit(1)
-}
-
 func main() {
 	var cfgfile *string = flag.String("config", "", "configuration file")
 	backends := make(map[string]*Backend)
 	hosts := make(map[string][]*Backend)
 	frontends := make(map[string]*Frontend)
 	flag.Parse()
-	if *cfgfile == "" {
-		usage()
-	}
 	cfg, err := goconf.ReadConfigFile(*cfgfile)
 	if err != nil {
 		log.Printf("opening %s failed: %v", *cfgfile, err)
