@@ -51,7 +51,7 @@ func plumbWebsocket(w http.ResponseWriter, r *http.Request) {
 	CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)))
 }
 
-func plumbHttp(h *RequestHandler2, w http.ResponseWriter, r *http.Request) {
+func plumbHttp(h *RequestHandler, w http.ResponseWriter, r *http.Request) {
 	resp, err := h.Transport.RoundTrip(r)
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)

@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	goconf "github.com/akrennmair/goconf"
+	//goconf "github.com/akrennmair/goconf"
 	"log"
 	"net/http"
-	"os"
+	//"os"
 )
 
 type Frontend struct {
@@ -25,7 +25,10 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = addForwardedFor(r)
 
 	// Pick out route
-	route := h.RouteMapping.FindRoute("", "")
+	route, err := h.RouteMapping.FindRoute("", "")
+	if err != nil {
+		log.Printf("Error: %s", err)
+	}
 	r.URL.Host = route.BackendUrl
 
 	upgrade_websocket := shouldUpgradeWebsocket(r)
@@ -39,7 +42,7 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	var addr *string = flag.String("listen", "0.0.0.0:8080", "address to listen on")
-	var cfgfile *string = flag.String("config", "", "configuration file")
+	//var cfgfile *string = flag.String("config", "", "configuration file")
 	flag.Parse()
 
 	r1 := &Route{
@@ -49,18 +52,18 @@ func main() {
 	}
 
 	rm1 := &RouteMappings{
-		Routes: []Route{*r1},
+		Routes: []*Route{r1},
 	}
 
 	f := &Frontend{
 		Addr: *addr,
 	}
 
-	cfg, err := goconf.ReadConfigFile(*cfgfile)
-	if err != nil {
-		log.Printf("opening %s failed: %v", *cfgfile, err)
-		os.Exit(1)
-	}
+	//cfg, err := goconf.ReadConfigFile(*cfgfile)
+	//if err != nil {
+	//log.Printf("opening %s failed: %v", *cfgfile, err)
+	//os.Exit(1)
+	//}
 
 	log.Printf("Starting frontend ...")
 	f.Start(rm1)
