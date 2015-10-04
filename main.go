@@ -1,22 +1,23 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	goconf "github.com/akrennmair/goconf"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"strings"
 )
 
+var addr *string = flag.String("listen", "0.0.0.0:8080", "address to listen on")
+
 type Backend struct {
 	Name          string
 	ConnectString string
 }
+
 type Frontend struct {
 	Name         string
 	BindString   string
@@ -29,95 +30,6 @@ type Frontend struct {
 	CertFile string
 }
 
-func shouldUpgradeWebsocket(r *http.Request) bool {
-	conn_hdr := ""
-	conn_hdrs := r.Header["Connection"]
-	log.Printf("Connection headers: %v", conn_hdrs)
-	if len(conn_hdrs) > 0 {
-		conn_hdr = conn_hdrs[0]
-	}
-	upgrade_websocket := false
-	if strings.ToLower(conn_hdr) == "upgrade" {
-		log.Printf("got Connection: Upgrade")
-		upgrade_hdrs := r.Header["Upgrade"]
-		log.Printf("Upgrade headers: %v", upgrade_hdrs)
-		if len(upgrade_hdrs) > 0 {
-			upgrade_websocket = (strings.ToLower(upgrade_hdrs[0]) == "websocket")
-		}
-	}
-	return upgrade_websocket
-}
-
-func plumbWebsocket(w http.ResponseWriter, r *http.Request) {
-	hj, ok := w.(http.Hijacker)
-	if !ok {
-		http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
-		return
-	}
-	conn, bufrw, err := hj.Hijack()
-	defer conn.Close()
-	conn2, err := net.Dial("tcp", r.URL.Host)
-	if err != nil {
-		http.Error(w, "couldn't connect to backend server", http.StatusServiceUnavailable)
-		return
-	}
-	defer conn2.Close()
-	err = r.Write(conn2)
-	if err != nil {
-		log.Printf("writing WebSocket request to backend server failed: %v", err)
-		return
-	}
-	CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)))
-}
-
-func plumbHttp(h *RequestHandler, w http.ResponseWriter, r *http.Request) {
-	resp, err := h.Transport.RoundTrip(r)
-	if err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprintf(w, "Error: %v", err)
-		return
-	}
-	for k, v := range resp.Header {
-		for _, vv := range v {
-			w.Header().Add(k, vv)
-		}
-	}
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
-	resp.Body.Close()
-}
-
-func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
-	buf := make([]byte, 40*1024)
-	for {
-		n, err := src.Read(buf)
-		if err != nil && err != io.EOF {
-			log.Printf("Read failed: %v", err)
-			return
-		}
-		if n == 0 {
-			return
-		}
-		dest.Write(buf[0:n])
-		dest.Flush()
-	}
-}
-func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWriteCloser, rw2 *bufio.ReadWriter) {
-	finished := make(chan bool)
-	go func() {
-		Copy(rw2, rw1)
-		conn2.Close()
-		finished <- true
-	}()
-	go func() {
-		Copy(rw1, rw2)
-		conn1.Close()
-		finished <- true
-	}()
-	<-finished
-	<-finished
-}
-
 type RequestHandler struct {
 	Transport    *http.Transport
 	Frontend     *Frontend
@@ -125,10 +37,19 @@ type RequestHandler struct {
 	Backends     chan *Backend
 }
 
-func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type RequestHandler2 struct {
+	Transport *http.Transport
+	Frontend  *Frontend
+	Backend   *Backend
+	Routes    []Route
+}
+
+func (h *RequestHandler2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//log.Printf("incoming request: %#v", *r)
 	r.RequestURI = ""
 	r.URL.Scheme = "http"
+
+	// Add x-forwarded-for header
 	if h.Frontend.AddForwarded {
 		remote_addr := r.RemoteAddr
 		idx := strings.LastIndex(remote_addr, ":")
@@ -140,6 +61,8 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		r.Header.Add("X-Forwarded-For", remote_addr)
 	}
+
+	// Configure routing
 	if len(h.Frontend.Hosts) == 0 {
 		backend := <-h.Backends
 		r.URL.Host = backend.ConnectString
@@ -170,10 +93,12 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		plumbHttp(h, w, r)
 	}
 }
+
 func usage() {
 	fmt.Fprintf(os.Stdout, "usage: %s -config=<configfile>\n", os.Args[0])
 	os.Exit(1)
 }
+
 func main() {
 	var cfgfile *string = flag.String("config", "", "configuration file")
 	backends := make(map[string]*Backend)
@@ -323,33 +248,30 @@ func main() {
 		<-exit_chan
 	}
 }
+
 func (f *Frontend) Start(hosts map[string][]*Backend, backends map[string]*Backend, logger *log.Logger) {
 	mux := http.NewServeMux()
-	hosts_chans := make(map[string]chan *Backend)
-	for _, h := range f.Hosts {
-		host_chan := make(chan *Backend, len(hosts[h]))
-		for _, b := range hosts[h] {
-			host_chan <- b
-		}
-		hosts_chans[h] = host_chan
+
+	// Main request handler, processes every incoming request
+	var request_handler http.Handler = &RequestHandler2{
+		Transport: &http.Transport{
+			DisableKeepAlives:  false,
+			DisableCompression: false,
+		},
+		Routes: route_list,
 	}
-	backends_chan := make(chan *Backend, len(f.Backends))
-	for _, b := range f.Backends {
-		backends_chan <- backends[b]
-	}
-	var request_handler http.Handler = &RequestHandler{Transport: &http.Transport{DisableKeepAlives: false, DisableCompression: false}, Frontend: f, HostBackends: hosts_chans, Backends: backends_chan}
 	if logger != nil {
 		request_handler = NewRequestLogger(request_handler, *logger)
 	}
+
+	// The slash route handles ALL requests by passing to the request_handler
+	// object
 	mux.Handle("/", request_handler)
-	srv := &http.Server{Handler: mux, Addr: f.BindString}
-	if f.HTTPS {
-		if err := srv.ListenAndServeTLS(f.CertFile, f.KeyFile); err != nil {
-			log.Printf("Starting HTTPS frontend %s failed: %v", f.Name, err)
-		}
-	} else {
-		if err := srv.ListenAndServe(); err != nil {
-			log.Printf("Starting frontend %s failed: %v", f.Name, err)
-		}
+	// Here we then launch the server from mux
+	srv := &http.Server{Handler: mux, Addr: *addr}
+
+	// Start
+	if err := srv.ListenAndServe(); err != nil {
+		log.Printf("Starting frontend %s failed: %v", f.Name, err)
 	}
 }
