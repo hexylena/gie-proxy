@@ -2,37 +2,68 @@ package main
 
 import (
 	"flag"
-	//goconf "github.com/akrennmair/goconf"
 	"log"
 	"net/http"
-	//"os"
 )
+
+var addr *string = flag.String("listen", "0.0.0.0:8080", "address to listen on")
+var path *string = flag.String("listen_path", "/galaxy/gie_proxy", "path to listen on (for cookies)")
+var cookie_name *string = flag.String("cookie_name", "galaxysession", "cookie name")
 
 type Frontend struct {
 	Addr string
+	Path string
 }
 
 type RequestHandler struct {
 	Transport    *http.Transport
 	RouteMapping *RouteMappings
+	Frontend     *Frontend
 }
 
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("incoming request: %#v", *r)
+	//log.Printf("incoming request: %# v", pretty.Formatter(*r))
 	r.URL.Scheme = "http"
 
-	r = addForwardedFor(r)
+	// Add x-forwarded-for header
+	addForwardedFor(r)
+
+	// If they request a url shorter than the request URI, we know it's bad.
+	// E.g. requesting /x when the proxy prefix is /blah is bad
+	if len(h.Frontend.Path) > len(r.RequestURI) {
+		http.Error(w, "unknown backend", http.StatusBadRequest)
+		return
+	}
+
+	// Get their cookie
+	cookie, err := r.Cookie(*cookie_name)
+	if err != nil {
+		http.Error(w, "unknown auth cookie", http.StatusUnauthorized)
+		return
+	}
+	//log.Printf("%#v", pretty.Formatter(cookie))
 
 	// Pick out route
-	route, err := h.RouteMapping.FindRoute(r.RequestURI, "")
+	route, err := h.RouteMapping.FindRoute(
+		r.RequestURI[len(h.Frontend.Path):], // Strip proxy prefix from path
+		cookie.Value,
+	)
 	if err != nil {
 		log.Printf("Error: %s", err)
+		http.Error(w, "unknown backend", http.StatusServiceUnavailable)
+		return
 	}
-	r.RequestURI = ""
-	r.URL.Host = route.BackendUrl
 
+	// Reset request URI
+	r.RequestURI = ""
+	r.URL.Host = route.BackendAddr
+	// Strip frontend's path out
+	r.URL.Path = r.URL.Path[len(h.Frontend.Path):]
+
+	// Upgrade the websocket if need be
 	upgrade_websocket := shouldUpgradeWebsocket(r)
 
+	//log.Printf("proxied request: %# v", pretty.Formatter(*r))
 	if upgrade_websocket {
 		plumbWebsocket(w, r)
 	} else {
@@ -41,29 +72,28 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	var addr *string = flag.String("listen", "0.0.0.0:8080", "address to listen on")
 	//var cfgfile *string = flag.String("config", "", "configuration file")
 	flag.Parse()
 
 	r1 := &Route{
-		FrontendPath:     "/hello",
-		BackendUrl:       "localhost:8080",
-		AuthorizedCookie: "test",
+		FrontendPath:     "/Downloads",
+		BackendAddr:      "localhost:8080",
+		AuthorizedCookie: "c6ca0ddb55be603a83c25732b8d531bf7d3d549ab7fd13906d7bcf1dbc172aa4787d1253f650b212",
+	}
+	r2 := &Route{
+		FrontendPath:     "/Videos",
+		BackendAddr:      "localhost:10000",
+		AuthorizedCookie: "c6ca0ddb55be603a83c25732b8d531bf7d3d549ab7fd13906d7bcf1dbc172aa4787d1253f650b212",
 	}
 
 	rm1 := &RouteMappings{
-		Routes: []*Route{r1},
+		Routes: []*Route{r1, r2},
 	}
 
 	f := &Frontend{
 		Addr: *addr,
+		Path: *path,
 	}
-
-	//cfg, err := goconf.ReadConfigFile(*cfgfile)
-	//if err != nil {
-	//log.Printf("opening %s failed: %v", *cfgfile, err)
-	//os.Exit(1)
-	//}
 
 	log.Printf("Starting frontend ...")
 	f.Start(rm1)
@@ -79,10 +109,8 @@ func (f *Frontend) Start(rm *RouteMappings) {
 			DisableCompression: false,
 		},
 		RouteMapping: rm,
+		Frontend:     f,
 	}
-	//if logger != nil {
-	//request_handler = NewRequestLogger(request_handler, *logger)
-	//}
 
 	// The slash route handles ALL requests by passing to the request_handler
 	// object
