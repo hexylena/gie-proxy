@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Route struct {
@@ -11,9 +12,8 @@ type Route struct {
 	AuthorizedCookie string
 }
 
-func (r *Route) IsAuthorized(cookie_key string, cookie_value string) bool {
-	return true
-	//return r.AuthorizedCookie == cookie
+func (r *Route) IsAuthorized(cookie string) bool {
+	return r.AuthorizedCookie == cookie
 }
 
 type RouteMappings struct {
@@ -25,7 +25,7 @@ func (rm *RouteMappings) FindRoute(url string, cookie string) (*Route, error) {
 	fmt.Printf("url: %s, cookie: %s\n", url, cookie)
 	for _, x := range rm.Routes {
 		fmt.Println(x)
-		if x.FrontendPath == url && x.IsAuthorized(rm.AuthCookieName, cookie) {
+		if strings.HasPrefix(url, x.FrontendPath) && x.IsAuthorized(cookie) {
 			return x, nil
 		}
 	}
