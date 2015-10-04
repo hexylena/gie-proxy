@@ -1,15 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 )
 
 type Route struct {
-	FrontendPath     string
-	BackendAddr      string
-	AuthorizedCookie string
+	FrontendPath     string `json:"frontend"`
+	BackendAddr      string `json:"backendAddr"`
+	AuthorizedCookie string `json:"cookie"`
 }
 
 func (r *Route) IsAuthorized(cookie string) bool {
@@ -19,6 +22,46 @@ func (r *Route) IsAuthorized(cookie string) bool {
 type RouteMappings struct {
 	Routes         []*Route
 	AuthCookieName string
+	Storage        string
+}
+
+func (rm *RouteMappings) StoreToFile(path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	jsonRoutes, err := json.Marshal(rm.Routes)
+	if err != nil {
+		return err
+	}
+	f.Write(jsonRoutes)
+	return nil
+}
+
+func NewRouteMapping(storage *string) *RouteMappings {
+	rm := &RouteMappings{
+		Storage: *storage,
+	}
+	rm.RestoreFromFile(storage)
+
+	return rm
+}
+
+func (rm *RouteMappings) RestoreFromFile(path *string) error {
+	data, err := ioutil.ReadFile(*path)
+	if err != nil {
+		return err
+	}
+	routes := make([]*Route, 0)
+
+	if err := json.Unmarshal(data, routes); err != nil {
+		return err
+	}
+
+	rm.Routes = routes
+	return nil
 }
 
 func (rm *RouteMappings) FindRoute(url string, cookie string) (*Route, error) {
@@ -41,6 +84,8 @@ func (rm *RouteMappings) AddRoute(url string, backend string, cookie string) {
 	}
 
 	rm.Routes = append(rm.Routes, r)
+	// After we add a route, we update the storage map
+	rm.StoreToFile(rm.Storage)
 }
 
 // Remove a route mapping

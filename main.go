@@ -9,6 +9,7 @@ import (
 var addr *string = flag.String("listen", "0.0.0.0:8080", "address to listen on")
 var path *string = flag.String("listen_path", "/galaxy/gie_proxy", "path to listen on (for cookies)")
 var cookie_name *string = flag.String("cookie_name", "galaxysession", "cookie name")
+var session_map *string = flag.String("storage", "./session_map.json", "Session map file. Used to (re)store route lists across restarts")
 
 type Frontend struct {
 	Addr string
@@ -72,31 +73,17 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	//var cfgfile *string = flag.String("config", "", "configuration file")
 	flag.Parse()
-
-	r1 := &Route{
-		FrontendPath:     "/Downloads",
-		BackendAddr:      "localhost:8080",
-		AuthorizedCookie: "c6ca0ddb55be603a83c25732b8d531bf7d3d549ab7fd13906d7bcf1dbc172aa4787d1253f650b212",
-	}
-	r2 := &Route{
-		FrontendPath:     "/Videos",
-		BackendAddr:      "localhost:10000",
-		AuthorizedCookie: "c6ca0ddb55be603a83c25732b8d531bf7d3d549ab7fd13906d7bcf1dbc172aa4787d1253f650b212",
-	}
-
-	rm1 := &RouteMappings{
-		Routes: []*Route{r1, r2},
-	}
-
+	// Load up route mapping
+	rm := NewRouteMapping(session_map)
+	// Build the frontend
 	f := &Frontend{
 		Addr: *addr,
 		Path: *path,
 	}
-
+	// Start our proxy
 	log.Printf("Starting frontend ...")
-	f.Start(rm1)
+	f.Start(rm)
 }
 
 func (f *Frontend) Start(rm *RouteMappings) {
