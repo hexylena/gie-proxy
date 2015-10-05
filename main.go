@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/kr/pretty"
+	//"github.com/kr/pretty"
 	"log"
 	"net/http"
+	"strings"
 )
 
 var addr *string = flag.String("listen", "0.0.0.0:8080", "address to listen on")
 var path *string = flag.String("listen_path", "/galaxy/gie_proxy", "path to listen on (for cookies)")
 var cookie_name *string = flag.String("cookie_name", "galaxysession", "cookie name")
-var session_map *string = flag.String("storage", "./session_map.json", "Session map file. Used to (re)store route lists across restarts")
+var session_map *string = flag.String("storage", "./session_map.xml", "Session map file. Used to (re)store route lists across restarts")
 var api_key *string = flag.String("api_key", "THE_DEFAULT_IS_NOT_SECURE", "Key to access the API")
 
 type Frontend struct {
@@ -32,15 +33,12 @@ type ApiHandler struct {
 }
 
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//log.Printf("incoming request: %# v", pretty.Formatter(*r))
 	r.URL.Scheme = "http"
-
 	// Add x-forwarded-for header
 	addForwardedFor(r)
 
-	// If they request a url shorter than the request URI, we know it's bad.
-	// E.g. requesting /x when the proxy prefix is /blah is bad
-	if len(h.Frontend.Path) > len(r.RequestURI) {
+	// Their requested URL must agree with our prefix
+	if !strings.HasPrefix(r.RequestURI, h.Frontend.Path) {
 		http.Error(w, "unknown backend", http.StatusBadRequest)
 		return
 	}
@@ -51,18 +49,16 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unknown auth cookie", http.StatusUnauthorized)
 		return
 	}
-	//log.Printf("%#v", pretty.Formatter(cookie))
 
-	log.Printf("%s %s %s", h.Frontend.Path, r.RequestURI, r.RequestURI[len(h.Frontend.Path):])
-	// Pick out route
+	log.Printf("Request for %s", r.RequestURI)
+
+	// Find our route
 	route, err := h.RouteMapping.FindRoute(
 		r.RequestURI[len(h.Frontend.Path):], // Strip proxy prefix from path
 		cookie.Value,
 	)
-	if err != nil {
-		log.Printf("Error: %s", err)
-		http.Error(w, "unknown backend", http.StatusServiceUnavailable)
-		return
+	if err.Error() == "Could not find route" {
+		http.Error(w, "unknown backend", http.StatusBadRequest)
 	}
 
 	// Reset request URI
@@ -71,15 +67,23 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Strip frontend's path out
 	//r.URL.Path = r.URL.Path[len(h.Frontend.Path):]
 
-	// Upgrade the websocket if need be
-	upgrade_websocket := shouldUpgradeWebsocket(r)
+	connect_err := connectRoute(h, w, r)
 
-	//log.Printf("proxied request: %# v", pretty.Formatter(*r))
-	if upgrade_websocket {
-		plumbWebsocket(w, r)
-	} else {
-		plumbHttp(h, w, r)
+	// If the backend is dead, remove it.
+	// The next request from the user will be better behaved.
+	if connect_err.Error() == "dead-backend" {
+		h.RouteMapping.RemoveRoute(route)
 	}
+}
+
+func connectRoute(h *RequestHandler, w http.ResponseWriter, r *http.Request) error {
+	var err error
+	if shouldUpgradeWebsocket(r) {
+		err = plumbWebsocket(w, r)
+	} else {
+		err = plumbHttp(h, w, r)
+	}
+	return err
 }
 
 func main() {
@@ -97,7 +101,6 @@ func main() {
 }
 
 func (h *ApiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("incoming request: %# v", pretty.Formatter(*r))
 	// Authnz
 	recv_api_key := r.URL.Query().Get("api_key")
 	// If it doesn't match what we expect, kick

@@ -1,17 +1,18 @@
 package main
 
 import (
-	"bufio"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 )
 
 type Route struct {
-	FrontendPath     string `json:"frontend"`
-	BackendAddr      string `json:"backendAddr"`
-	AuthorizedCookie string `json:"cookie"`
+	FrontendPath     string
+	BackendAddr      string
+	AuthorizedCookie string
 }
 
 func (r *Route) IsAuthorized(cookie string) bool {
@@ -19,22 +20,9 @@ func (r *Route) IsAuthorized(cookie string) bool {
 }
 
 type RouteMappings struct {
-	Routes         []Route
+	Routes         []Route `xml:"Routes>Route"`
 	AuthCookieName string
 	Storage        string
-}
-
-func (rm *RouteMappings) StoreToFile(path string) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	for _, route := range rm.Routes {
-		fmt.Fprintf(f, "%s\t%s\t%s\n", route.FrontendPath, route.BackendAddr, route.AuthorizedCookie)
-	}
-	return nil
 }
 
 // Init function, automatically loads from storage
@@ -46,42 +34,42 @@ func NewRouteMapping(storage *string) *RouteMappings {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%#v", rm.Routes)
-
+	fmt.Printf("%#v", rm)
 	return rm
 }
 
-// TODO: xml/json
+func (rm *RouteMappings) StoreToFile(path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	output, err := xml.MarshalIndent(rm, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	f.Write(output)
+
+	return nil
+}
+
 func (rm *RouteMappings) RestoreFromFile(path *string) error {
 	// If the file doesn't exist, just return.
 	if _, err := os.Stat(*path); os.IsNotExist(err) {
 		return nil
 	}
 
-	// Open file
-	f, err := os.Open(*path)
+	data, err := ioutil.ReadFile(*path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	routes := make([]Route, 0)
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		linedata := strings.Split(scanner.Text(), "\t")
-		if len(linedata) != 3 {
-			return errors.New("Improperly formatted line! " + scanner.Text())
-		}
-		route := &Route{
-			FrontendPath:     linedata[0],
-			BackendAddr:      linedata[1],
-			AuthorizedCookie: linedata[2],
-		}
-		routes = append(routes, *route)
+	if err := xml.Unmarshal(data, &rm); err != nil {
+		return err
 	}
 
-	rm.Routes = routes
 	return nil
 }
 
@@ -104,6 +92,7 @@ func (rm *RouteMappings) AddRoute(url string, backend string, cookie string) {
 		AuthorizedCookie: cookie,
 	}
 
+	fmt.Printf("Adding new route %#v", r)
 	rm.Routes = append(rm.Routes, *r)
 	// After we add a route, we update the storage map
 	rm.StoreToFile(rm.Storage)
@@ -111,18 +100,18 @@ func (rm *RouteMappings) AddRoute(url string, backend string, cookie string) {
 
 // Remove a route mapping
 // TODO
-//func (rm *RouteMappings) RemoveRoute(url string, backend string, cookie string) {
-//tmpr := &Route{
-//FrontendPath:     url,
-//BackendAddr:       backend,
-//AuthorizedCookie: cookie,
-//}
-//for idx, x := range rm.Routes {
-//if tmpr == x {
-//sliceA := rm.Routes[:idx]
-//sliceB := rm.Routes[idx+1:]
-////rm.Routes = append(sliceA, sliceB)
-//return
-//}
-//}
-//}
+func (rm *RouteMappings) RemoveRoute(route *Route) {
+	//tmpr := &Route{
+	//FrontendPath:     url,
+	//BackendAddr:       backend,
+	//AuthorizedCookie: cookie,
+	//}
+	//for idx, x := range rm.Routes {
+	//if tmpr == x {
+	//sliceA := rm.Routes[:idx]
+	//sliceB := rm.Routes[idx+1:]
+	////rm.Routes = append(sliceA, sliceB)
+	//return
+	//}
+	//}
+}
