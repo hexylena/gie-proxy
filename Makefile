@@ -3,8 +3,14 @@ TARGET := gxproxy
 
 all: $(TARGET)
 
-$(TARGET): $(SRC)
+complexity: $(SRC)
+	gocyclo -over 10 $(SRC)
+
+$(TARGET): $(SRC) lint complexity
 	go build -o $@
+
+lint: $(SRC)
+	golint $(SRC)
 
 clean:
 	$(RM) $(TARGET)
