@@ -20,7 +20,7 @@ lint: $(SRC) complexity deps
 test: $(SRC) deps
 	go test -v ./...
 
-$(TARGET): $(SRC) test deps
+$(TARGET): $(SRC) deps
 	go build -o $@
 
 clean:
