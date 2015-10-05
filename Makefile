@@ -12,6 +12,9 @@ $(TARGET): $(SRC) lint complexity
 lint: $(SRC)
 	golint $(SRC)
 
+test: $(SRC) lint complexity
+	go test -v ./...
+
 clean:
 	$(RM) $(TARGET)
 
