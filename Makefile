@@ -14,13 +14,13 @@ deps:
 complexity: $(SRC) deps
 	gocyclo -over 10 $(SRC)
 
-lint: $(SRC) deps
+lint: $(SRC) complexity deps
 	golint $(SRC)
 
-test: $(SRC) lint complexity deps
+test: $(SRC) deps
 	go test -v ./...
 
-$(TARGET): $(SRC) lint complexity test deps
+$(TARGET): $(SRC) test deps
 	go build -o $@
 
 clean:
