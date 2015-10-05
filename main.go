@@ -10,29 +10,29 @@ import (
 	"strings"
 )
 
-var addr *string = flag.String("listen", "0.0.0.0:8080", "address to listen on")
-var path *string = flag.String("listen_path", "/galaxy/gie_proxy", "path to listen on (for cookies)")
-var cookie_name *string = flag.String("cookie_name", "galaxysession", "cookie name")
-var session_map *string = flag.String("storage", "./session_map.xml", "Session map file. Used to (re)store route lists across restarts")
-var api_key *string = flag.String("api_key", "THE_DEFAULT_IS_NOT_SECURE", "Key to access the API")
+var addr = flag.String("listen", "0.0.0.0:8080", "address to listen on")
+var path = flag.String("listen_path", "/galaxy/gie_proxy", "path to listen on (for cookies)")
+var cookieName = flag.String("cookie_name", "galaxysession", "cookie name")
+var sessionMap = flag.String("storage", "./sessionMap.xml", "Session map file. Used to (re)store route lists across restarts")
+var apiKey = flag.String("api_key", "THE_DEFAULT_IS_NOT_SECURE", "Key to access the API")
 
-type Frontend struct {
+type frontend struct {
 	Addr string
 	Path string
 }
 
-type RequestHandler struct {
+type requestHandler struct {
 	Transport    *http.Transport
 	RouteMapping *RouteMappings
-	Frontend     *Frontend
+	Frontend     *frontend
 }
 
-type ApiHandler struct {
+type apiHandler struct {
 	Transport    *http.Transport
 	RouteMapping *RouteMappings
 }
 
-func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.URL.Scheme = "http"
 	// Add x-forwarded-for header
 	addForwardedFor(r)
@@ -44,7 +44,7 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get their cookie
-	cookie, err := r.Cookie(*cookie_name)
+	cookie, err := r.Cookie(*cookieName)
 	if err != nil {
 		http.Error(w, "unknown auth cookie", http.StatusUnauthorized)
 		return
@@ -67,21 +67,21 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Strip frontend's path out
 	//r.URL.Path = r.URL.Path[len(h.Frontend.Path):]
 
-	connect_err := connectRoute(h, w, r)
+	connectErr := connectRoute(h, w, r)
 
 	// If the backend is dead, remove it.
 	// The next request from the user will be better behaved.
-	if connect_err.Error() == "dead-backend" {
+	if connectErr.Error() == "dead-backend" {
 		h.RouteMapping.RemoveRoute(route)
 	}
 }
 
-func connectRoute(h *RequestHandler, w http.ResponseWriter, r *http.Request) error {
+func connectRoute(h *requestHandler, w http.ResponseWriter, r *http.Request) error {
 	var err error
 	if shouldUpgradeWebsocket(r) {
 		err = plumbWebsocket(w, r)
 	} else {
-		err = plumbHttp(h, w, r)
+		err = plumbHTTP(h, w, r)
 	}
 	return err
 }
@@ -89,9 +89,9 @@ func connectRoute(h *RequestHandler, w http.ResponseWriter, r *http.Request) err
 func main() {
 	flag.Parse()
 	// Load up route mapping
-	rm := NewRouteMapping(session_map)
+	rm := NewRouteMapping(sessionMap)
 	// Build the frontend
-	f := &Frontend{
+	f := &frontend{
 		Addr: *addr,
 		Path: *path,
 	}
@@ -100,11 +100,11 @@ func main() {
 	f.Start(rm)
 }
 
-func (h *ApiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Authnz
-	recv_api_key := r.URL.Query().Get("api_key")
+	recvAPIKey := r.URL.Query().Get("api_key")
 	// If it doesn't match what we expect, kick
-	if recv_api_key != *api_key {
+	if recvAPIKey != *apiKey {
 		http.Error(w, "Invalid API key", http.StatusUnauthorized)
 		return
 	}
@@ -150,11 +150,11 @@ func (h *ApiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (f *Frontend) Start(rm *RouteMappings) {
+func (f *frontend) Start(rm *RouteMappings) {
 	mux := http.NewServeMux()
 
 	// Main request handler, processes every incoming request
-	var request_handler http.Handler = &RequestHandler{
+	var requestHandler http.Handler = &requestHandler{
 		Transport: &http.Transport{
 			DisableKeepAlives:  false,
 			DisableCompression: false,
@@ -163,7 +163,7 @@ func (f *Frontend) Start(rm *RouteMappings) {
 		Frontend:     f,
 	}
 
-	var api_handler http.Handler = &ApiHandler{
+	var apiHandler http.Handler = &apiHandler{
 		Transport: &http.Transport{
 			DisableKeepAlives:  false,
 			DisableCompression: false,
@@ -173,8 +173,8 @@ func (f *Frontend) Start(rm *RouteMappings) {
 
 	// The slash route handles ALL requests by passing to the request_handler
 	// object
-	mux.Handle("/api", api_handler)
-	mux.Handle("/", request_handler)
+	mux.Handle("/api", apiHandler)
+	mux.Handle("/", requestHandler)
 	// Here we then launch the server from mux
 	srv := &http.Server{Handler: mux, Addr: f.Addr}
 

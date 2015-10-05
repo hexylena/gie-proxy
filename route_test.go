@@ -33,7 +33,7 @@ func TestIsAuthorized(t *testing.T) {
 
 func TestFindRoute(t *testing.T) {
 	type testcase struct {
-		Url       string
+		URL       string
 		Cookie    string
 		Result    *Route
 		RouteList []Route
@@ -42,7 +42,7 @@ func TestFindRoute(t *testing.T) {
 	}
 	tests := []testcase{
 		{
-			Url:       "/galaxy/gie_proxy/ipython",
+			URL:       "/galaxy/gie_proxy/ipython",
 			Cookie:    "valid",
 			Result:    &Route{},
 			Err:       "Could not find route",
@@ -50,7 +50,7 @@ func TestFindRoute(t *testing.T) {
 			RouteList: []Route{},
 		},
 		{
-			Url:       "/galaxy/gie_proxy/ipython",
+			URL:       "/galaxy/gie_proxy/ipython",
 			Cookie:    "invalid",
 			Result:    &Route{},
 			Err:       "Could not find route",
@@ -64,7 +64,7 @@ func TestFindRoute(t *testing.T) {
 			Routes: tc.RouteList,
 		}
 
-		result, err := rm.FindRoute(tc.Url, tc.Cookie)
+		result, err := rm.FindRoute(tc.URL, tc.Cookie)
 
 		if err != nil {
 			if err.Error() != tc.Err {
@@ -74,7 +74,7 @@ func TestFindRoute(t *testing.T) {
 
 		if result.FrontendPath != tc.Result.FrontendPath || result.BackendAddr != result.BackendAddr {
 			t.Error(
-				"For", tc.Url, "and",
+				"For", tc.URL, "and",
 				tc.Cookie, "expected", tc.Result,
 				"found", result,
 			)
