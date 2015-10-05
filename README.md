@@ -1,5 +1,7 @@
 # GIE Proxy
 
+[![Build Status](https://travis-ci.org/erasche/gie-proxy.svg)](https://travis-ci.org/erasche/gie-proxy)
+
 The Galaxy Interactive Environments proxy is a websocket aware HTTP proxy with
 cookie based authentication.
 
