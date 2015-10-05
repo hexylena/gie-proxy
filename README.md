@@ -9,7 +9,11 @@ cookie based authentication.
 - [x] Supports running under a proxy prefix
 - [x] API to allow dynamically adding new proxy routes
 - [x] save/restore proxy routes across restarts
-- [ ] kill routes after N minutes
+- [ ] check for live routes (i.e. expect container death in background) regularly.
+- [ ] kill routes after N minutes of no traffic
+    - interesting case here, what if a container dies on the backend and
+      another starts up between checks. That's unsettling, but could've
+      happened with the NodeJS case as well.
 - [ ] execute docker-compose kill/docker kills on route finish
 
 ## Building
@@ -33,14 +37,8 @@ balancer, resulting in a binary named `gxproxy`
 
 ## License
 
-MIT Licensed. Forked and rewriten from
-[upstream](https://github.com/akrennmair/drunken-hipster). See the file LICENSE
-for license information.
-
-## Author
-
-Eric Rasche <esr@tamu.edu>
+MIT Licensed. See the file LICENSE for license information.
 
 Based on code from https://github.com/akrennmair/drunken-hipster, however a
 substantial rewrite took place, leaving only a small portion of the original
-code base intact (the copy functions in util.go).
+code base intact (the copy/plumbing functions in util.go).
