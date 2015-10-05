@@ -23,13 +23,13 @@ type frontend struct {
 
 type requestHandler struct {
 	Transport    *http.Transport
-	RouteMapping *RouteMappings
+	RouteMapping *RouteMapping
 	Frontend     *frontend
 }
 
 type apiHandler struct {
 	Transport    *http.Transport
-	RouteMapping *RouteMappings
+	RouteMapping *RouteMapping
 }
 
 func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,6 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Request for %s", r.RequestURI)
-
 	// Find our route
 	route, err := h.RouteMapping.FindRoute(
 		r.RequestURI[len(h.Frontend.Path):], // Strip proxy prefix from path
@@ -60,6 +59,8 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err.Error() == "Could not find route" {
 		http.Error(w, "unknown backend", http.StatusBadRequest)
 	}
+	// Now that we have a route, update when we last saw it.
+	route.Seen()
 
 	// Reset request URI
 	r.RequestURI = ""
@@ -150,7 +151,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (f *frontend) Start(rm *RouteMappings) {
+func (f *frontend) Start(rm *RouteMapping) {
 	mux := http.NewServeMux()
 
 	// Main request handler, processes every incoming request

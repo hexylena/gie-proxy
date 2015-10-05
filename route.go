@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 )
 
 // Route represents connection information to wire up a frontend request to a
@@ -15,6 +16,7 @@ type Route struct {
 	FrontendPath     string
 	BackendAddr      string
 	AuthorizedCookie string
+	LastSeen         time.Time
 }
 
 // IsAuthorized checks if a user's cookie is valid for a given route object.
@@ -22,17 +24,22 @@ func (r *Route) IsAuthorized(cookie string) bool {
 	return r.AuthorizedCookie == cookie
 }
 
-// RouteMappings represents essentially the server state, including all
+// Seen notifies the route object that it was seen recently
+func (r *Route) Seen() {
+	r.LastSeen = time.Now()
+}
+
+// RouteMapping represents essentially the server state, including all
 // routes and metadata necessary to re-launch in an identical state.
-type RouteMappings struct {
+type RouteMapping struct {
 	Routes         []Route `xml:"Routes>Route"`
 	AuthCookieName string
 	Storage        string
 }
 
-// NewRouteMapping automatically loads the RouteMappings object from storage
-func NewRouteMapping(storage *string) *RouteMappings {
-	rm := &RouteMappings{
+// NewRouteMapping automatically loads the RouteMapping object from storage
+func NewRouteMapping(storage *string) *RouteMapping {
+	rm := &RouteMapping{
 		Storage: *storage,
 	}
 	err := rm.restoreFromFile(storage)
@@ -44,7 +51,7 @@ func NewRouteMapping(storage *string) *RouteMappings {
 }
 
 // StoreToFile serializes the routemappings object to an XML file.
-func (rm *RouteMappings) StoreToFile(path string) error {
+func (rm *RouteMapping) StoreToFile(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -61,7 +68,7 @@ func (rm *RouteMappings) StoreToFile(path string) error {
 	return nil
 }
 
-func (rm *RouteMappings) restoreFromFile(path *string) error {
+func (rm *RouteMapping) restoreFromFile(path *string) error {
 	// If the file doesn't exist, just return.
 	if _, err := os.Stat(*path); os.IsNotExist(err) {
 		return nil
@@ -83,7 +90,7 @@ func (rm *RouteMappings) restoreFromFile(path *string) error {
 // requesting, and the user's cookie. This allows us to have multiple
 // /ipython routes that map to different backends, based on who is
 // requesting.
-func (rm *RouteMappings) FindRoute(url string, cookie string) (*Route, error) {
+func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
 	fmt.Printf("url: %s, cookie: %s\n", url, cookie)
 	for _, x := range rm.Routes {
 		fmt.Println(x)
@@ -95,11 +102,12 @@ func (rm *RouteMappings) FindRoute(url string, cookie string) (*Route, error) {
 }
 
 // AddRoute adds a new route
-func (rm *RouteMappings) AddRoute(url string, backend string, cookie string) {
+func (rm *RouteMapping) AddRoute(url string, backend string, cookie string) {
 	r := &Route{
 		FrontendPath:     url,
 		BackendAddr:      backend,
 		AuthorizedCookie: cookie,
+		LastSeen:         time.Now(),
 	}
 
 	fmt.Printf("Adding new route %#v", r)
@@ -109,7 +117,7 @@ func (rm *RouteMappings) AddRoute(url string, backend string, cookie string) {
 }
 
 // RemoveRoute removes a route
-func (rm *RouteMappings) RemoveRoute(route *Route) {
+func (rm *RouteMapping) RemoveRoute(route *Route) {
 	//tmpr := &Route{
 	//FrontendPath:     url,
 	//BackendAddr:       backend,
