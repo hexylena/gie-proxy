@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -29,34 +30,35 @@ func shouldUpgradeWebsocket(r *http.Request) bool {
 	return upgrade_websocket
 }
 
-func plumbWebsocket(w http.ResponseWriter, r *http.Request) {
+func plumbWebsocket(w http.ResponseWriter, r *http.Request) error {
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
-		return
+		return errors.New("no-hijack")
 	}
 	conn, bufrw, err := hj.Hijack()
 	defer conn.Close()
 	conn2, err := net.Dial("tcp", r.URL.Host)
 	if err != nil {
 		http.Error(w, "couldn't connect to backend server", http.StatusServiceUnavailable)
-		return
+		return errors.New("dead-backend")
 	}
 	defer conn2.Close()
 	err = r.Write(conn2)
 	if err != nil {
 		log.Printf("writing WebSocket request to backend server failed: %v", err)
-		return
+		return errors.New("dead-backend")
 	}
 	CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)))
+	return nil
 }
 
-func plumbHttp(h *RequestHandler, w http.ResponseWriter, r *http.Request) {
+func plumbHttp(h *RequestHandler, w http.ResponseWriter, r *http.Request) error {
 	resp, err := h.Transport.RoundTrip(r)
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		fmt.Fprintf(w, "Error: %v", err)
-		return
+		return errors.New("dead-backend")
 	}
 	for k, v := range resp.Header {
 		for _, vv := range v {
@@ -66,6 +68,7 @@ func plumbHttp(h *RequestHandler, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 	resp.Body.Close()
+	return nil
 }
 
 func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
