@@ -60,7 +60,7 @@ func TestFindRoute(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		rm := &RouteMappings{
+		rm := &RouteMapping{
 			Routes: tc.RouteList,
 		}
 
