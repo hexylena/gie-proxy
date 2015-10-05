@@ -154,7 +154,6 @@ func (rm *RouteMapping) restoreFromFile(path *string) error {
 func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
 	fmt.Printf("url: %s, cookie: %s\n", url, cookie)
 	for _, x := range rm.Routes {
-		fmt.Println(x)
 		if strings.HasPrefix(url, x.FrontendPath) && x.IsAuthorized(cookie) {
 			return &x, nil
 		}

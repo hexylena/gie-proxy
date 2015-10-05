@@ -53,13 +53,12 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Request for %s", r.RequestURI)
 	// Find our route
 	route, err := h.RouteMapping.FindRoute(
 		r.RequestURI[len(h.Frontend.Path):], // Strip proxy prefix from path
 		cookie.Value,
 	)
-	if err.Error() == "Could not find route" {
+	if err != nil && err.Error() == "Could not find route" {
 		http.Error(w, "unknown backend", http.StatusBadRequest)
 	}
 	// Now that we have a route, update when we last saw it.
@@ -75,7 +74,7 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// If the backend is dead, remove it.
 	// The next request from the user will be better behaved.
-	if connectErr.Error() == "dead-backend" {
+	if connectErr != nil && connectErr.Error() == "dead-backend" {
 		h.RouteMapping.RemoveRoute(route)
 	}
 }
@@ -96,6 +95,7 @@ func main() {
 	rm := NewRouteMapping(sessionMap, dockerEndpoint)
 	rm.AuthCookieName = *cookieName
 	rm.NoAccessThreshold = time.Second * time.Duration(*noAccessThreshold)
+	rm.Save()
 	// Build the frontend
 	f := &frontend{
 		Addr: *addr,
