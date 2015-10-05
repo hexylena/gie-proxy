@@ -1,3 +1,5 @@
+GOOS ?= linux
+GOARCH ?= amd64
 SRC := $(wildcard *.go)
 TARGET := gxproxy
 
@@ -23,7 +25,7 @@ test: $(SRC) lint complexity deps
 	go test -v ./...
 
 $(TARGET): $(SRC) lint complexity test deps
-	go build -o $@
+	go build -o $@-${GOOS}-${GOARCH}
 
 clean:
 	$(RM) $(TARGET)
