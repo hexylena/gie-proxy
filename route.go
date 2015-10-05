@@ -22,6 +22,11 @@ type Route struct {
 	ContainerIds     []string `xml:ContainerIds`
 }
 
+// String representation of Route struct
+func (r Route) String() string {
+	return fmt.Sprintf("%s->%s (LastSeen @ %s, %d containers associated)", r.FrontendPath, r.BackendAddr, r.LastSeen, len(r.ContainerIds))
+}
+
 // IsAuthorized checks if a user's cookie is valid for a given route object.
 func (r *Route) IsAuthorized(cookie string) bool {
 	return r.AuthorizedCookie == cookie
@@ -49,6 +54,11 @@ type RouteMapping struct {
 	client            *docker.Client
 }
 
+// String representation of RouteMapping struct
+func (rm RouteMapping) String() string {
+	return fmt.Sprintf("RouteMapping <%d routes under %s>", len(rm.Routes), rm.AuthCookieName)
+}
+
 // NewRouteMapping automatically loads the RouteMapping object from storage
 func NewRouteMapping(storage *string, dockerEndpoint *string) *RouteMapping {
 	rm := &RouteMapping{
@@ -58,7 +68,7 @@ func NewRouteMapping(storage *string, dockerEndpoint *string) *RouteMapping {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%#v", rm)
+	fmt.Printf("%s\n", rm)
 
 	// Set up
 	rm.DockerEndpoint = *dockerEndpoint
@@ -177,7 +187,7 @@ func (rm *RouteMapping) AddRoute(url string, backend string, cookie string, cont
 		ContainerIds:     containers,
 	}
 
-	fmt.Printf("Adding new route %#v\n", r)
+	fmt.Printf("Adding new route %s\n", r)
 	rm.Routes = append(rm.Routes, *r)
 	// After we add a route, we update the storage map
 	rm.Save()
