@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -14,15 +13,15 @@ import (
 func shouldUpgradeWebsocket(r *http.Request) bool {
 	connHdr := ""
 	connHdrs := r.Header["Connection"]
-	log.Printf("Connection headers: %v", connHdrs)
+	log.Debug("Connection headers: %v", connHdrs)
 	if len(connHdrs) > 0 {
 		connHdr = connHdrs[0]
 	}
 	upgradeWebsocket := false
 	if strings.ToLower(connHdr) == "upgrade" {
-		log.Printf("got Connection: Upgrade")
+		log.Debug("got Connection: Upgrade")
 		upgradeHdrs := r.Header["Upgrade"]
-		log.Printf("Upgrade headers: %v", upgradeHdrs)
+		log.Debug("Upgrade headers: %v", upgradeHdrs)
 		if len(upgradeHdrs) > 0 {
 			upgradeWebsocket = (strings.ToLower(upgradeHdrs[0]) == "websocket")
 		}
@@ -46,7 +45,7 @@ func plumbWebsocket(w http.ResponseWriter, r *http.Request) error {
 	defer conn2.Close()
 	err = r.Write(conn2)
 	if err != nil {
-		log.Printf("writing WebSocket request to backend server failed: %v", err)
+		log.Debug("writing WebSocket request to backend server failed: %v", err)
 		return errors.New("dead-backend")
 	}
 	CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)))
@@ -77,7 +76,7 @@ func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
 	for {
 		n, err := src.Read(buf)
 		if err != nil && err != io.EOF {
-			log.Printf("Read failed: %v", err)
+			log.Debug("Read failed: %v", err)
 			return
 		}
 		if n == 0 {

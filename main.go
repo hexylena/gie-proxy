@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/op/go-logging"
+	"os"
 	"time"
 	//"github.com/kr/pretty"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -18,6 +19,7 @@ var sessionMap = flag.String("storage", "./sessionMap.xml", "Session map file. U
 var apiKey = flag.String("api_key", "THE_DEFAULT_IS_NOT_SECURE", "Key to access the API")
 var noAccessThreshold = flag.Int("noaccess", 60, "Length of time a proxy route must be unused before automatically being removed")
 var dockerEndpoint = flag.String("docker", "unix:///var/run/docker.sock", "Endpoint at which we can access docker. No TLS Support yet")
+var log = logging.MustGetLogger("main")
 
 type frontend struct {
 	Addr string
@@ -42,6 +44,7 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Their requested URL must agree with our prefix
 	if !strings.HasPrefix(r.RequestURI, h.Frontend.Path) {
+		log.Notice("Bad request %s", r.RequestURI)
 		http.Error(w, "unknown backend", http.StatusBadRequest)
 		return
 	}
@@ -49,6 +52,7 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get their cookie
 	cookie, err := r.Cookie(*cookieName)
 	if err != nil {
+		log.Notice("Request lacked cookie")
 		http.Error(w, "unknown auth cookie", http.StatusUnauthorized)
 		return
 	}
@@ -90,19 +94,32 @@ func connectRoute(h *requestHandler, w http.ResponseWriter, r *http.Request) err
 }
 
 func main() {
+	// Logging
+	format := logging.MustStringFormatter(
+		"%{color}%{time:15:04:05.000} %{shortfunc} > %{level:.4s} %{id:03x}%{color:reset} %{message}",
+	)
+	backend1 := logging.NewLogBackend(os.Stderr, "", 0)
+	backend1Leveled := logging.AddModuleLevel(backend1)
+	backend1Leveled.SetLevel(logging.DEBUG, "")
+	logging.SetFormatter(format)
+	log.SetBackend(backend1Leveled)
+
+	log.Debug("Starting up")
+	// Cli Args
 	flag.Parse()
 	// Load up route mapping
 	rm := NewRouteMapping(sessionMap, dockerEndpoint)
 	rm.AuthCookieName = *cookieName
 	rm.NoAccessThreshold = time.Second * time.Duration(*noAccessThreshold)
 	rm.Save()
+	log.Debug("Loaded RouteMapping from Storage %s", rm)
 	// Build the frontend
 	f := &frontend{
 		Addr: *addr,
 		Path: *path,
 	}
 	// Start our proxy
-	log.Printf("Starting frontend ...")
+	log.Info("Starting frontend ...")
 	f.Start(rm)
 }
 
@@ -123,6 +140,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid API key", http.StatusUnauthorized)
 		return
 	}
+	log.Debug("Received API request")
 
 	// Request Processing
 	if r.Method == "GET" {
@@ -139,6 +157,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// Seems like this should automatically be a decode exception?
 		if route.FrontendPath == "" || route.BackendAddr == "" || route.AuthorizedCookie == "" || len(route.ContainerIds) == 0 {
+			log.Info("An invalid route was attempted [%s %s %s %s]", route.FrontendPath, route.BackendAddr, route.AuthorizedCookie, route.ContainerIds)
 			http.Error(w, "Invalid Route data", http.StatusBadRequest)
 			return
 		}
@@ -186,6 +205,6 @@ func (f *frontend) Start(rm *RouteMapping) {
 
 	// Start
 	if err := srv.ListenAndServe(); err != nil {
-		log.Printf("Starting frontend failed: %v", err)
+		log.Critical("Starting frontend failed: %v", err)
 	}
 }
