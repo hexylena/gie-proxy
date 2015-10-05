@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"time"
 	//"github.com/kr/pretty"
 	"log"
 	"net/http"
@@ -15,6 +16,8 @@ var path = flag.String("listen_path", "/galaxy/gie_proxy", "path to listen on (f
 var cookieName = flag.String("cookie_name", "galaxysession", "cookie name")
 var sessionMap = flag.String("storage", "./sessionMap.xml", "Session map file. Used to (re)store route lists across restarts")
 var apiKey = flag.String("api_key", "THE_DEFAULT_IS_NOT_SECURE", "Key to access the API")
+var noAccessThreshold = flag.Int("noaccess", 60, "Length of time a proxy route must be unused before automatically being removed")
+var dockerEndpoint = flag.String("docker", "unix:///var/run/docker.sock", "Endpoint at which we can access docker. No TLS Support yet")
 
 type frontend struct {
 	Addr string
@@ -90,7 +93,9 @@ func connectRoute(h *requestHandler, w http.ResponseWriter, r *http.Request) err
 func main() {
 	flag.Parse()
 	// Load up route mapping
-	rm := NewRouteMapping(sessionMap)
+	rm := NewRouteMapping(sessionMap, dockerEndpoint)
+	rm.AuthCookieName = *cookieName
+	rm.NoAccessThreshold = time.Second * time.Duration(*noAccessThreshold)
 	// Build the frontend
 	f := &frontend{
 		Addr: *addr,
