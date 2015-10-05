@@ -101,6 +101,15 @@ func main() {
 	f.Start(rm)
 }
 
+func renderViewData(h *apiHandler, w http.ResponseWriter, r *http.Request) {
+	jsonRoutes, err := json.MarshalIndent(h.RouteMapping.Routes, "", "    ")
+	if err != nil {
+		http.Error(w, "Data encoding error", http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprintf(w, string(jsonRoutes))
+}
+
 func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Authnz
 	recvAPIKey := r.URL.Query().Get("api_key")
@@ -113,12 +122,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Request Processing
 	if r.Method == "GET" {
 		// Get a list of routes
-		jsonRoutes, err := json.MarshalIndent(h.RouteMapping.Routes, "", "    ")
-		if err != nil {
-			http.Error(w, "Data encoding error", http.StatusInternalServerError)
-			return
-		}
-		fmt.Fprintf(w, string(jsonRoutes))
+		renderViewData(h, w, r)
 	} else if r.Method == "POST" {
 		decoder := json.NewDecoder(r.Body)
 		route := new(Route)
@@ -129,7 +133,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Seems like this should automatically be a decode exception?
-		if route.FrontendPath == "" || route.BackendAddr == "" || route.AuthorizedCookie == "" {
+		if route.FrontendPath == "" || route.BackendAddr == "" || route.AuthorizedCookie == "" || len(route.ContainerIds) == 0 {
 			http.Error(w, "Invalid Route data", http.StatusBadRequest)
 			return
 		}
@@ -139,15 +143,10 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			route.FrontendPath,
 			route.BackendAddr,
 			route.AuthorizedCookie,
+			route.ContainerIds,
 		)
 
-		// Then display all of them. TODO: refactor this?
-		jsonRoutes, err := json.MarshalIndent(h.RouteMapping.Routes, "", "    ")
-		if err != nil {
-			http.Error(w, "Data encoding error", http.StatusInternalServerError)
-			return
-		}
-		fmt.Fprintf(w, string(jsonRoutes))
+		renderViewData(h, w, r)
 	}
 }
 
@@ -163,6 +162,7 @@ func (f *frontend) Start(rm *RouteMapping) {
 		RouteMapping: rm,
 		Frontend:     f,
 	}
+	rm.RegisterCleaner()
 
 	var apiHandler http.Handler = &apiHandler{
 		Transport: &http.Transport{
