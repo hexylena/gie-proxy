@@ -32,9 +32,11 @@ balancer, resulting in a binary named `gxproxy`
 ```
 -api_key="THE_DEFAULT_IS_NOT_SECURE": Key to access the API
 -cookie_name="galaxysession": cookie name
+-docker="unix:///var/run/docker.sock": Endpoint at which we can access docker. No TLS Support yet
 -listen="0.0.0.0:8080": address to listen on
 -listen_path="/galaxy/gie_proxy": path to listen on (for cookies)
--storage="./session_map.json": Session map file. Used to (re)store route lists across restarts
+-noaccess=60: Length of time a proxy route must be unused before automatically being removed
+-storage="./sessionMap.xml": Session map file. Used to (re)store route lists across restarts
 ```
 
 ## License
