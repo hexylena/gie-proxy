@@ -12,22 +12,22 @@ import (
 )
 
 func shouldUpgradeWebsocket(r *http.Request) bool {
-	conn_hdr := ""
-	conn_hdrs := r.Header["Connection"]
-	log.Printf("Connection headers: %v", conn_hdrs)
-	if len(conn_hdrs) > 0 {
-		conn_hdr = conn_hdrs[0]
+	connHdr := ""
+	connHdrs := r.Header["Connection"]
+	log.Printf("Connection headers: %v", connHdrs)
+	if len(connHdrs) > 0 {
+		connHdr = connHdrs[0]
 	}
-	upgrade_websocket := false
-	if strings.ToLower(conn_hdr) == "upgrade" {
+	upgradeWebsocket := false
+	if strings.ToLower(connHdr) == "upgrade" {
 		log.Printf("got Connection: Upgrade")
-		upgrade_hdrs := r.Header["Upgrade"]
-		log.Printf("Upgrade headers: %v", upgrade_hdrs)
-		if len(upgrade_hdrs) > 0 {
-			upgrade_websocket = (strings.ToLower(upgrade_hdrs[0]) == "websocket")
+		upgradeHdrs := r.Header["Upgrade"]
+		log.Printf("Upgrade headers: %v", upgradeHdrs)
+		if len(upgradeHdrs) > 0 {
+			upgradeWebsocket = (strings.ToLower(upgradeHdrs[0]) == "websocket")
 		}
 	}
-	return upgrade_websocket
+	return upgradeWebsocket
 }
 
 func plumbWebsocket(w http.ResponseWriter, r *http.Request) error {
@@ -53,7 +53,7 @@ func plumbWebsocket(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func plumbHttp(h *RequestHandler, w http.ResponseWriter, r *http.Request) error {
+func plumbHTTP(h *requestHandler, w http.ResponseWriter, r *http.Request) error {
 	resp, err := h.Transport.RoundTrip(r)
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -71,6 +71,7 @@ func plumbHttp(h *RequestHandler, w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
+// Copy from src buffer to destination buffer. One way.
 func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
 	buf := make([]byte, 40*1024)
 	for {
@@ -87,6 +88,7 @@ func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
 	}
 }
 
+// CopyBidir copies the first buffer to the second and vice versa.
 func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWriteCloser, rw2 *bufio.ReadWriter) {
 	finished := make(chan bool)
 	go func() {
@@ -104,13 +106,13 @@ func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWri
 }
 
 func addForwardedFor(r *http.Request) {
-	remote_addr := r.RemoteAddr
-	idx := strings.LastIndex(remote_addr, ":")
+	remoteAddr := r.RemoteAddr
+	idx := strings.LastIndex(remoteAddr, ":")
 	if idx != -1 {
-		remote_addr = remote_addr[0:idx]
-		if remote_addr[0] == '[' && remote_addr[len(remote_addr)-1] == ']' {
-			remote_addr = remote_addr[1 : len(remote_addr)-1]
+		remoteAddr = remoteAddr[0:idx]
+		if remoteAddr[0] == '[' && remoteAddr[len(remoteAddr)-1] == ']' {
+			remoteAddr = remoteAddr[1 : len(remoteAddr)-1]
 		}
 	}
-	r.Header.Add("X-Forwarded-For", remote_addr)
+	r.Header.Add("X-Forwarded-For", remoteAddr)
 }

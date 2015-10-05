@@ -9,28 +9,33 @@ import (
 	"strings"
 )
 
+// Route represents connection information to wire up a frontend request to a
+// backend
 type Route struct {
 	FrontendPath     string
 	BackendAddr      string
 	AuthorizedCookie string
 }
 
+// IsAuthorized checks if a user's cookie is valid for a given route object.
 func (r *Route) IsAuthorized(cookie string) bool {
 	return r.AuthorizedCookie == cookie
 }
 
+// RouteMappings represents essentially the server state, including all
+// routes and metadata necessary to re-launch in an identical state.
 type RouteMappings struct {
 	Routes         []Route `xml:"Routes>Route"`
 	AuthCookieName string
 	Storage        string
 }
 
-// Init function, automatically loads from storage
+// NewRouteMapping automatically loads the RouteMappings object from storage
 func NewRouteMapping(storage *string) *RouteMappings {
 	rm := &RouteMappings{
 		Storage: *storage,
 	}
-	err := rm.RestoreFromFile(storage)
+	err := rm.restoreFromFile(storage)
 	if err != nil {
 		panic(err)
 	}
@@ -38,6 +43,7 @@ func NewRouteMapping(storage *string) *RouteMappings {
 	return rm
 }
 
+// StoreToFile serializes the routemappings object to an XML file.
 func (rm *RouteMappings) StoreToFile(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -55,7 +61,7 @@ func (rm *RouteMappings) StoreToFile(path string) error {
 	return nil
 }
 
-func (rm *RouteMappings) RestoreFromFile(path *string) error {
+func (rm *RouteMappings) restoreFromFile(path *string) error {
 	// If the file doesn't exist, just return.
 	if _, err := os.Stat(*path); os.IsNotExist(err) {
 		return nil
@@ -73,6 +79,10 @@ func (rm *RouteMappings) RestoreFromFile(path *string) error {
 	return nil
 }
 
+// FindRoute locates a given route based on the URL the request is
+// requesting, and the user's cookie. This allows us to have multiple
+// /ipython routes that map to different backends, based on who is
+// requesting.
 func (rm *RouteMappings) FindRoute(url string, cookie string) (*Route, error) {
 	fmt.Printf("url: %s, cookie: %s\n", url, cookie)
 	for _, x := range rm.Routes {
@@ -84,7 +94,7 @@ func (rm *RouteMappings) FindRoute(url string, cookie string) (*Route, error) {
 	return &Route{}, errors.New("Could not find route")
 }
 
-// Register a new route
+// AddRoute adds a new route
 func (rm *RouteMappings) AddRoute(url string, backend string, cookie string) {
 	r := &Route{
 		FrontendPath:     url,
@@ -98,8 +108,7 @@ func (rm *RouteMappings) AddRoute(url string, backend string, cookie string) {
 	rm.StoreToFile(rm.Storage)
 }
 
-// Remove a route mapping
-// TODO
+// RemoveRoute removes a route
 func (rm *RouteMappings) RemoveRoute(route *Route) {
 	//tmpr := &Route{
 	//FrontendPath:     url,
