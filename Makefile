@@ -1,31 +1,27 @@
 GOOS ?= linux
 GOARCH ?= amd64
 SRC := $(wildcard *.go)
-TARGET := gxproxy
+TARGET := gxproxy-${GOOS}-${GOARCH}
 
 all: $(TARGET)
 
-dep_lint:
-	go get github.com/golang/lint/golint
-
-dep_complex:
-	go get github.com/fzipp/gocyclo
-
 deps:
+	go get github.com/golang/lint/golint
+	go get github.com/fzipp/gocyclo
 	go get github.com/op/go-logging
 	go get github.com/fsouza/go-dockerclient
 
-complexity: $(SRC) dep_complex
+complexity: $(SRC) deps
 	gocyclo -over 10 $(SRC)
 
-lint: $(SRC) dep_lint
+lint: $(SRC) deps
 	golint $(SRC)
 
 test: $(SRC) lint complexity deps
 	go test -v ./...
 
 $(TARGET): $(SRC) lint complexity test deps
-	go build -o $@-${GOOS}-${GOARCH}
+	go build -o $@
 
 clean:
 	$(RM) $(TARGET)
