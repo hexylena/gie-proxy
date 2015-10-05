@@ -32,6 +32,8 @@ func (r *Route) Seen() {
 	r.LastSeen = time.Now()
 }
 
+// IsExpired checks if a route is experied, given the current time and a
+// threshold
 func (r *Route) IsExpired(currentTime time.Time, threshold time.Duration) bool {
 	return currentTime.Sub(r.LastSeen) > threshold
 }
@@ -43,10 +45,12 @@ type RouteMapping struct {
 	AuthCookieName    string
 	Storage           string
 	NoAccessThreshold time.Duration
+	DockerEndpoint    string
+	client            *docker.Client
 }
 
 // NewRouteMapping automatically loads the RouteMapping object from storage
-func NewRouteMapping(storage *string) *RouteMapping {
+func NewRouteMapping(storage *string, dockerEndpoint *string) *RouteMapping {
 	rm := &RouteMapping{
 		Storage: *storage,
 	}
@@ -56,6 +60,15 @@ func NewRouteMapping(storage *string) *RouteMapping {
 	}
 	fmt.Printf("%#v", rm)
 
+	// Set up
+	rm.DockerEndpoint = *dockerEndpoint
+	client, err := docker.NewClient(rm.DockerEndpoint)
+	if err != nil {
+		// Panic if we can't kill containers
+		panic(err)
+	}
+	rm.client = client
+
 	return rm
 }
 
@@ -64,11 +77,9 @@ func NewRouteMapping(storage *string) *RouteMapping {
 // function kills that route's containers, removes the route, and saves to
 // file.
 func (rm *RouteMapping) RemoveDeadContainers(currentTime time.Time, threshold time.Duration) {
-	fmt.Printf("Removing Dead Containers %s\n", currentTime)
 	for _, route := range rm.Routes {
 		if route.IsExpired(currentTime, threshold) {
 			fmt.Printf("Found expired route %s\n", route)
-			route.KillContainers()
 			rm.RemoveRoute(&route)
 			rm.Save()
 		}
@@ -76,12 +87,10 @@ func (rm *RouteMapping) RemoveDeadContainers(currentTime time.Time, threshold ti
 }
 
 // KillContainers kills all containers associated with a route
-func (route *Route) KillContainers() {
-	endpoint := "unix:///var/run/docker.sock"
-	client, _ := docker.NewClient(endpoint)
-	for _, containerId := range route.ContainerIds {
-		err := client.KillContainer(docker.KillContainerOptions{
-			ID:     containerId,
+func (r *Route) KillContainers(rm *RouteMapping) {
+	for _, containerID := range r.ContainerIds {
+		err := rm.client.KillContainer(docker.KillContainerOptions{
+			ID:     containerID,
 			Signal: 9,
 		})
 		if err != nil {
@@ -153,6 +162,8 @@ func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
 	return &Route{}, errors.New("Could not find route")
 }
 
+// Save is a convenience function to automatically serialize to default
+// storage location.
 func (rm *RouteMapping) Save() {
 	rm.StoreToFile(rm.Storage)
 }
@@ -175,6 +186,9 @@ func (rm *RouteMapping) AddRoute(url string, backend string, cookie string, cont
 
 // RemoveRoute removes a route
 func (rm *RouteMapping) RemoveRoute(route *Route) {
+	// More generic cleanup method for route?
+	route.KillContainers(rm)
+	// Then remove the route proper
 	for idx, x := range rm.Routes {
 		if reflect.DeepEqual(*route, x) {
 			rm.Routes = rm.Routes[:idx+copy(rm.Routes[idx:], rm.Routes[idx+1:])]
