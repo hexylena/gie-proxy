@@ -53,6 +53,7 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	//log.Printf("%#v", pretty.Formatter(cookie))
 
+	log.Printf("%s %s %s", h.Frontend.Path, r.RequestURI, r.RequestURI[len(h.Frontend.Path):])
 	// Pick out route
 	route, err := h.RouteMapping.FindRoute(
 		r.RequestURI[len(h.Frontend.Path):], // Strip proxy prefix from path
@@ -68,7 +69,7 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.RequestURI = ""
 	r.URL.Host = route.BackendAddr
 	// Strip frontend's path out
-	r.URL.Path = r.URL.Path[len(h.Frontend.Path):]
+	//r.URL.Path = r.URL.Path[len(h.Frontend.Path):]
 
 	// Upgrade the websocket if need be
 	upgrade_websocket := shouldUpgradeWebsocket(r)
