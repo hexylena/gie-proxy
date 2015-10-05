@@ -68,7 +68,6 @@ func NewRouteMapping(storage *string, dockerEndpoint *string) *RouteMapping {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%s\n", rm)
 
 	// Set up
 	rm.DockerEndpoint = *dockerEndpoint
@@ -87,24 +86,26 @@ func NewRouteMapping(storage *string, dockerEndpoint *string) *RouteMapping {
 // function kills that route's containers, removes the route, and saves to
 // file.
 func (rm *RouteMapping) RemoveDeadContainers(currentTime time.Time, threshold time.Duration) {
+	log.Debug("Removing expired containers")
 	for _, route := range rm.Routes {
 		if route.IsExpired(currentTime, threshold) {
-			fmt.Printf("Found expired route %s\n", route)
+			log.Info("Found expired route %s", route)
 			rm.RemoveRoute(&route)
-			rm.Save()
 		}
 	}
+	rm.Save()
 }
 
 // KillContainers kills all containers associated with a route
 func (r *Route) KillContainers(rm *RouteMapping) {
 	for _, containerID := range r.ContainerIds {
+		log.Debug("Killing %s", containerID)
 		err := rm.client.KillContainer(docker.KillContainerOptions{
 			ID:     containerID,
 			Signal: 9,
 		})
 		if err != nil {
-			fmt.Printf("Error killing container: %s\n", err)
+			log.Warning("Error killing container: %s", err)
 		}
 	}
 }
@@ -113,6 +114,7 @@ func (r *Route) KillContainers(rm *RouteMapping) {
 // checks if there are any expired containers to kill
 func (rm *RouteMapping) RegisterCleaner() {
 	// Register our new
+	// TODO: configurable?
 	ticker := time.NewTicker(time.Second * 3)
 	go func(routeMapping *RouteMapping) {
 		for t := range ticker.C {
@@ -162,7 +164,7 @@ func (rm *RouteMapping) restoreFromFile(path *string) error {
 // /ipython routes that map to different backends, based on who is
 // requesting.
 func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
-	fmt.Printf("url: %s, cookie: %s\n", url, cookie)
+	log.Debug("url: %s, cookie: %s", url, cookie)
 	for _, x := range rm.Routes {
 		if strings.HasPrefix(url, x.FrontendPath) && x.IsAuthorized(cookie) {
 			return &x, nil
@@ -187,7 +189,7 @@ func (rm *RouteMapping) AddRoute(url string, backend string, cookie string, cont
 		ContainerIds:     containers,
 	}
 
-	fmt.Printf("Adding new route %s\n", r)
+	log.Debug("Adding new route %s", r)
 	rm.Routes = append(rm.Routes, *r)
 	// After we add a route, we update the storage map
 	rm.Save()

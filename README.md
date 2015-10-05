@@ -12,11 +12,11 @@ cookie based authentication.
 - [x] API to allow dynamically adding new proxy routes
 - [x] save/restore proxy routes across restarts
 - [ ] check for live routes (i.e. expect container death in background) regularly.
-- [ ] kill routes after N minutes of no traffic
+- [x] kill routes after N minutes of no traffic
     - interesting case here, what if a container dies on the backend and
       another starts up between checks. That's unsettling, but could've
       happened with the NodeJS case as well.
-- [ ] execute docker-compose kill/docker kills on route finish
+- [x] execute docker kills on route finish
 
 ## Building
 
