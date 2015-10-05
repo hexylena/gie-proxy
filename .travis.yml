@@ -10,4 +10,5 @@ install:
     - go get github.com/golang/lint/golint
     - go get github.com/fzipp/gocyclo
 script:
-     - make test
+    - make lint
+    - make test
