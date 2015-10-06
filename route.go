@@ -20,6 +20,7 @@ type Route struct {
 	AuthorizedCookie string
 	LastSeen         time.Time
 	ContainerIds     []string `xml:ContainerIds`
+	Expired          bool
 }
 
 // String representation of Route struct
@@ -35,12 +36,6 @@ func (r *Route) IsAuthorized(cookie string) bool {
 // Seen notifies the route object that it was seen recently
 func (r *Route) Seen() {
 	r.LastSeen = time.Now()
-}
-
-// IsExpired checks if a route is experied, given the current time and a
-// threshold
-func (r *Route) IsExpired(currentTime time.Time, threshold time.Duration) bool {
-	return currentTime.Sub(r.LastSeen) > threshold
 }
 
 // RouteMapping represents essentially the server state, including all
@@ -81,14 +76,13 @@ func NewRouteMapping(storage *string, dockerEndpoint *string) *RouteMapping {
 	return rm
 }
 
-// RemoveDeadContainers is intended to be called with the current time and a
-// threshold past which a container with no traffic should be killed. The
-// function kills that route's containers, removes the route, and saves to
-// file.
-func (rm *RouteMapping) RemoveDeadContainers(currentTime time.Time, threshold time.Duration) {
+// RemoveDeadContainers finds containers with no traffic which should be
+// killed. The function kills that route's containers, removes the route, and
+// saves to file.
+func (rm *RouteMapping) RemoveDeadContainers() {
 	log.Debug("Removing expired containers")
 	for _, route := range rm.Routes {
-		if route.IsExpired(currentTime, threshold) {
+		if route.Expired {
 			log.Info("Found expired route %s", route)
 			rm.RemoveRoute(&route)
 		}
@@ -117,8 +111,8 @@ func (rm *RouteMapping) RegisterCleaner() {
 	// TODO: configurable?
 	ticker := time.NewTicker(time.Second * 3)
 	go func(routeMapping *RouteMapping) {
-		for t := range ticker.C {
-			rm.RemoveDeadContainers(t, rm.NoAccessThreshold)
+		for _ = range ticker.C {
+			rm.RemoveDeadContainers()
 		}
 	}(rm)
 }
