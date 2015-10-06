@@ -81,6 +81,19 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if connectErr != nil && connectErr.Error() == "dead-backend" {
 		h.RouteMapping.RemoveRoute(route)
 	}
+
+	notify := w.(http.CloseNotifier)
+	go func(notify http.CloseNotifier, route *Route) {
+		// TODO: add a timer?
+		select {
+		case <-notify.CloseNotify():
+			fmt.Println("HTTP connection just closed.")
+			// TODO: Many HTTP connections come through, need to make sure ALL
+			// are closed.
+			route.Expired = true
+			return
+		}
+	}(notify, route)
 }
 
 func connectRoute(h *requestHandler, w http.ResponseWriter, r *http.Request) error {
