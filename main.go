@@ -5,11 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/op/go-logging"
-	"os"
-	"time"
-	//"github.com/kr/pretty"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 )
 
 var addr = flag.String("listen", "0.0.0.0:8080", "address to listen on")

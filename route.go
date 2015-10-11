@@ -4,12 +4,13 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	docker "github.com/fsouza/go-dockerclient"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	docker "github.com/fsouza/go-dockerclient"
 )
 
 // Route represents connection information to wire up a frontend request to a
@@ -111,7 +112,7 @@ func (rm *RouteMapping) RegisterCleaner() {
 	// TODO: configurable?
 	ticker := time.NewTicker(time.Second * 3)
 	go func(routeMapping *RouteMapping) {
-		for _ = range ticker.C {
+		for range ticker.C {
 			rm.RemoveDeadContainers()
 		}
 	}(rm)
