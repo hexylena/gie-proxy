@@ -20,7 +20,7 @@ type Route struct {
 	BackendAddr      string
 	AuthorizedCookie string
 	LastSeen         time.Time
-	ContainerIds     []string `xml:ContainerIds`
+	ContainerIds     []string `xml:"ContainerIds"`
 	Expired          bool
 }
 
