@@ -7,9 +7,10 @@
             <LastSeen>2015-10-05T15:12:53.812903282-05:00</LastSeen>
             <ContainerIds>deadbeef</ContainerIds>
             <ContainerIds>cafebabe</ContainerIds>
+            <Expired>false</Expired>
         </Route>
     </Routes>
-    <AuthCookieName>session</AuthCookieName>
+    <AuthCookieName>galaxysession</AuthCookieName>
     <Storage>./sessionMap.xml</Storage>
     <NoAccessThreshold>60000000000</NoAccessThreshold>
     <DockerEndpoint>unix:///var/run/docker.sock</DockerEndpoint>
