@@ -25,17 +25,6 @@ func (r *Route) Seen() {
 	r.LastSeen = time.Now()
 }
 
-// RouteMapping represents essentially the server state, including all
-// routes and metadata necessary to re-launch in an identical state.
-type RouteMapping struct {
-	Routes            []Route `xml:"Routes>Route"`
-	AuthCookieName    string
-	Storage           string
-	NoAccessThreshold time.Duration
-	DockerEndpoint    string
-	client            *docker.Client
-}
-
 // String representation of RouteMapping struct
 func (rm RouteMapping) String() string {
 	return fmt.Sprintf("RouteMapping <%d routes under %s>", len(rm.Routes), rm.AuthCookieName)
@@ -91,7 +80,7 @@ func (r *Route) KillContainers(rm *RouteMapping) {
 func (rm *RouteMapping) RegisterCleaner() {
 	// Register our new
 	// TODO: configurable?
-	ticker := time.NewTicker(time.Second * 3)
+	ticker := time.NewTicker(time.Second * rm.CleanInterval)
 	go func(routeMapping *RouteMapping) {
 		for range ticker.C {
 			rm.RemoveDeadContainers()
@@ -111,12 +100,6 @@ func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
 		}
 	}
 	return &Route{}, errors.New("Could not find route")
-}
-
-// Save is a convenience function to automatically serialize to default
-// storage location.
-func (rm *RouteMapping) Save() {
-	rm.StoreToFile(rm.Storage)
 }
 
 // AddRoute adds a new route
@@ -141,6 +124,7 @@ func (rm *RouteMapping) RemoveRoute(route *Route) {
 	route.KillContainers(rm)
 	// Then remove the route proper
 	for idx, x := range rm.Routes {
+		// TODO
 		if reflect.DeepEqual(*route, x) {
 			rm.Routes = rm.Routes[:idx+copy(rm.Routes[idx:], rm.Routes[idx+1:])]
 			return
