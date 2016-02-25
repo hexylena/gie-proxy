@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-func (f *frontend) Start(rm *RouteMapping, apiKey string, cookieName string) {
+func (f *frontend) Start(rm *RouteMapping) {
 	mux := http.NewServeMux()
 
 	// Main request handler, processes every incoming request
@@ -15,7 +15,6 @@ func (f *frontend) Start(rm *RouteMapping, apiKey string, cookieName string) {
 		},
 		RouteMapping: rm,
 		Frontend:     f,
-		CookieName:   cookieName,
 	}
 	rm.RegisterCleaner()
 
@@ -25,7 +24,7 @@ func (f *frontend) Start(rm *RouteMapping, apiKey string, cookieName string) {
 			DisableCompression: false,
 		},
 		RouteMapping: rm,
-		APIKey:       apiKey,
+		Frontend:     f,
 	}
 
 	// The slash route handles ALL requests by passing to the request_handler
