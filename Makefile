@@ -10,6 +10,7 @@ deps:
 	go get github.com/fzipp/gocyclo
 	go get github.com/op/go-logging
 	go get github.com/fsouza/go-dockerclient
+	go get github.com/codegangsta/cli
 
 complexity: $(SRC) deps
 	gocyclo -over 10 $(SRC)
