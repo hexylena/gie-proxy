@@ -9,19 +9,20 @@ import (
 type frontend struct {
 	Addr string
 	Path string
+	APIKey       string
+	CookieName   string
 }
 
 type requestHandler struct {
 	Transport    *http.Transport
 	RouteMapping *RouteMapping
 	Frontend     *frontend
-	CookieName   string
 }
 
 type apiHandler struct {
 	Transport    *http.Transport
 	RouteMapping *RouteMapping
-	APIKey       string
+	Frontend     *frontend
 }
 
 // Route represents connection information to wire up a frontend request to a
