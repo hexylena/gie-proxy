@@ -5,15 +5,13 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
-	"github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("main")
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "gie-proxy"
 	app.Usage = "proxy for Galaxy GIEs"
+	app.Version = "0.3.0"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "listenAddr",
@@ -53,7 +51,8 @@ func main() {
 	}
 
 	app.Action = func(c *cli.Context) {
-		main2(
+		setupLogging()
+		startServer(
 			c.String("sessionMap"),
 			c.String("dockerAddr"),
 			c.String("cookieName"),
@@ -66,30 +65,28 @@ func main() {
 	app.Run(os.Args)
 }
 
-func main2(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath, apiKey string, noAccessThreshold int) {
+func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath, apiKey string, noAccessThreshold int) {
 	// Logging
-	format := logging.MustStringFormatter(
-		"%{color}%{time:15:04:05.000} %{shortfunc} > %{level:.4s} %{id:03x}%{color:reset} %{message}",
-	)
-	backend1 := logging.NewLogBackend(os.Stderr, "", 0)
-	backend1Leveled := logging.AddModuleLevel(backend1)
-	backend1Leveled.SetLevel(logging.DEBUG, "")
-	logging.SetFormatter(format)
-	log.SetBackend(backend1Leveled)
 
 	log.Debug("Starting up")
 	// Load up route mapping
-	rm := NewRouteMapping(sessionMap, dockerEndpoint)
-	rm.AuthCookieName = cookieName
-	rm.NoAccessThreshold = time.Second * time.Duration(noAccessThreshold)
+	rm := &RouteMapping{
+		Storage:           sessionMap,
+		AuthCookieName:    cookieName,
+		NoAccessThreshold: time.Second * time.Duration(noAccessThreshold),
+		DockerEndpoint:    dockerEndpoint,
+	}
+	InitializeRouteMapper(rm)
 	rm.Save()
-	log.Debug("Loaded RouteMapping from Storage %s", rm)
+
 	// Build the frontend
 	f := &frontend{
-		Addr: listenAddr,
-		Path: listenPath,
+		Addr:       listenAddr,
+		Path:       listenPath,
+		APIKey:     apiKey,
+		CookieName: cookieName,
 	}
 	// Start our proxy
 	log.Info("Starting frontend ...")
-	f.Start(rm, apiKey, cookieName)
+	f.Start(rm)
 }
