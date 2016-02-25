@@ -36,6 +36,7 @@ func (f *frontend) Start(rm *RouteMapping, apiKey string, cookieName string) {
 	srv := &http.Server{Handler: mux, Addr: f.Addr}
 
 	// Start
+	log.Info("Listening on %s %s", f.Addr, f.Path)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Critical("Starting frontend failed: %v", err)
 	}

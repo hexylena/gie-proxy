@@ -1,10 +1,16 @@
 package main
 
 import (
-    "os"
-    "encoding/xml"
+	"encoding/xml"
 	"io/ioutil"
+	"os"
 )
+
+// Save is a convenience function to automatically serialize to default
+// storage location.
+func (rm *RouteMapping) Save() {
+	rm.StoreToFile(rm.Storage)
+}
 
 // StoreToFile serializes the routemappings object to an XML file.
 func (rm *RouteMapping) StoreToFile(path string) error {
@@ -41,5 +47,3 @@ func (rm *RouteMapping) restoreFromFile(path string) error {
 
 	return nil
 }
-
-
