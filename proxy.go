@@ -29,7 +29,7 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get their cookie
-	cookie, err := r.Cookie(h.CookieName)
+	cookie, err := r.Cookie(h.Frontend.CookieName)
 	if err != nil {
 		log.Notice("Request lacked cookie")
 		http.Error(w, "unknown auth cookie", http.StatusUnauthorized)
