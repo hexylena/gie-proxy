@@ -43,6 +43,11 @@ func main() {
 			Value: 60,
 			Usage: "Length of time a proxy route must be unused before automatically being removed",
 		},
+		cli.IntFlag{
+			Name:  "cleanInterval",
+			Value: 10,
+			Usage: "Length of time between checks for dead routes, and associated container cleanups",
+		},
 		cli.StringFlag{
 			Name:  "dockerAddr",
 			Value: "unix:///var/run/docker.sock",
@@ -60,12 +65,13 @@ func main() {
 			c.String("listenPath"),
 			c.String("apiKey"),
 			c.Int("noAccess"),
+			c.Int("cleanInterval"),
 		)
 	}
 	app.Run(os.Args)
 }
 
-func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath, apiKey string, noAccessThreshold int) {
+func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath, apiKey string, cleanInterval, noAccessThreshold int) {
 	// Logging
 
 	log.Debug("Starting up")
@@ -75,6 +81,7 @@ func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath,
 		AuthCookieName:    cookieName,
 		NoAccessThreshold: time.Second * time.Duration(noAccessThreshold),
 		DockerEndpoint:    dockerEndpoint,
+		CleanInterval:     time.Second * time.Duration(cleanInterval),
 	}
 	InitializeRouteMapper(rm)
 	rm.Save()
