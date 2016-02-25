@@ -25,7 +25,7 @@ func (f *frontend) Start(rm *RouteMapping, apiKey string, cookieName string) {
 			DisableCompression: false,
 		},
 		RouteMapping: rm,
-		ApiKey:       apiKey,
+		APIKey:       apiKey,
 	}
 
 	// The slash route handles ALL requests by passing to the request_handler
