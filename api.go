@@ -10,7 +10,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Authnz
 	recvAPIKey := r.URL.Query().Get("api_key")
 	// If it doesn't match what we expect, kick
-	if recvAPIKey != h.APIKey {
+	if recvAPIKey != h.Frontend.APIKey {
 		http.Error(w, "Invalid API key", http.StatusUnauthorized)
 		return
 	}
