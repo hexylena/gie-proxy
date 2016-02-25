@@ -79,7 +79,6 @@ func (r *Route) KillContainers(rm *RouteMapping) {
 // checks if there are any expired containers to kill
 func (rm *RouteMapping) RegisterCleaner() {
 	// Register our new
-	// TODO: configurable?
 	ticker := time.NewTicker(time.Second * rm.CleanInterval)
 	go func(routeMapping *RouteMapping) {
 		for range ticker.C {
