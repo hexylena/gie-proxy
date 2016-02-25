@@ -7,10 +7,10 @@ import (
 )
 
 type frontend struct {
-	Addr string
-	Path string
-	APIKey       string
-	CookieName   string
+	Addr       string
+	Path       string
+	APIKey     string
+	CookieName string
 }
 
 type requestHandler struct {
