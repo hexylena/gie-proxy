@@ -19,5 +19,5 @@ type requestHandler struct {
 type apiHandler struct {
 	Transport    *http.Transport
 	RouteMapping *RouteMapping
-	ApiKey       string
+	APIKey       string
 }
