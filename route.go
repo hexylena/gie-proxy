@@ -56,9 +56,9 @@ func (rm RouteMapping) String() string {
 }
 
 // NewRouteMapping automatically loads the RouteMapping object from storage
-func NewRouteMapping(storage *string, dockerEndpoint *string) *RouteMapping {
+func NewRouteMapping(storage, dockerEndpoint string) *RouteMapping {
 	rm := &RouteMapping{
-		Storage: *storage,
+		Storage: storage,
 	}
 	err := rm.restoreFromFile(storage)
 	if err != nil {
@@ -66,7 +66,7 @@ func NewRouteMapping(storage *string, dockerEndpoint *string) *RouteMapping {
 	}
 
 	// Set up
-	rm.DockerEndpoint = *dockerEndpoint
+	rm.DockerEndpoint = dockerEndpoint
 	client, err := docker.NewClient(rm.DockerEndpoint)
 	if err != nil {
 		// Panic if we can't kill containers
@@ -136,13 +136,13 @@ func (rm *RouteMapping) StoreToFile(path string) error {
 	return nil
 }
 
-func (rm *RouteMapping) restoreFromFile(path *string) error {
+func (rm *RouteMapping) restoreFromFile(path string) error {
 	// If the file doesn't exist, just return.
-	if _, err := os.Stat(*path); os.IsNotExist(err) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil
 	}
 
-	data, err := ioutil.ReadFile(*path)
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
