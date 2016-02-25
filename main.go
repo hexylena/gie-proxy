@@ -54,7 +54,15 @@ func main() {
 	}
 
 	app.Action = func(c *cli.Context) {
-		//c.Int("buffSize"),
+		main2(
+			c.String("sessionMap"),
+			c.String("dockerAddr"),
+			c.String("cookieName"),
+			c.String("listenAddr"),
+			c.String("listenPath"),
+			c.String("apiKey"),
+			c.Int("noAccess"),
+		)
 	}
 	app.Run(os.Args)
 }
