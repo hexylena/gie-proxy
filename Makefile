@@ -22,8 +22,8 @@ gofmt: $(src)
 lint: $(SRC) deps
 	golint $(SRC)
 
-cover.out: $(SRC)
-	go test -coverprofile cover.out $(glide novendor)
+coverage.txt: $(SRC)
+	go test -coverprofile coverage.txt $(glide novendor)
 
 qc: lint vet complexity
 
