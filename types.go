@@ -7,10 +7,9 @@ import (
 )
 
 type frontend struct {
-	Addr       string
-	Path       string
-	APIKey     string
-	CookieName string
+	Addr   string
+	Path   string
+	APIKey string
 }
 
 type requestHandler struct {
@@ -33,7 +32,6 @@ type Route struct {
 	AuthorizedCookie string
 	LastSeen         time.Time
 	ContainerIds     []string `xml:"ContainerIds"`
-	ID               int64
 }
 
 // RouteMapping represents essentially the server state, including all
