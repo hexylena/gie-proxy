@@ -10,9 +10,11 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
+var RID int64 = 0
+
 // String representation of Route struct
 func (r Route) String() string {
-	return fmt.Sprintf("%s->%s (LastSeen @ %s, %d containers associated)", r.FrontendPath, r.BackendAddr, r.LastSeen, len(r.ContainerIds))
+	return fmt.Sprintf("[%d] %s->%s (LastSeen @ %s, %d containers associated)", r.ID, r.FrontendPath, r.BackendAddr, r.LastSeen, len(r.ContainerIds))
 }
 
 // IsAuthorized checks if a user's cookie is valid for a given route object.
@@ -22,6 +24,7 @@ func (r *Route) IsAuthorized(cookie string) bool {
 
 // Seen notifies the route object that it was seen recently
 func (r *Route) Seen() {
+	log.Debug("%s seen %s", r.LastSeen, time.Now())
 	r.LastSeen = time.Now()
 }
 
@@ -54,7 +57,7 @@ func InitializeRouteMapper(rm *RouteMapping) {
 // saves to file.
 func (rm *RouteMapping) RemoveDeadContainers() {
 	for _, route := range rm.Routes {
-		if route.Expired || time.Since(route.LastSeen) > rm.NoAccessThreshold {
+		if time.Since(route.LastSeen) > rm.NoAccessThreshold {
 			log.Info("Found expired route %s", route)
 			rm.RemoveRoute(&route)
 		}
@@ -94,9 +97,9 @@ func (rm *RouteMapping) RegisterCleaner() {
 // /ipython routes that map to different backends, based on who is
 // requesting.
 func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
-	for _, x := range rm.Routes {
-		if strings.HasPrefix(url, x.FrontendPath) && x.IsAuthorized(cookie) {
-			return &x, nil
+	for idx, _ := range rm.Routes {
+		if strings.HasPrefix(url, rm.Routes[idx].FrontendPath) && rm.Routes[idx].IsAuthorized(cookie) {
+			return &rm.Routes[idx], nil
 		}
 	}
 	return &Route{}, errors.New("Could not find route")
@@ -110,7 +113,9 @@ func (rm *RouteMapping) AddRoute(url string, backend string, cookie string, cont
 		AuthorizedCookie: cookie,
 		LastSeen:         time.Now(),
 		ContainerIds:     containers,
+		ID:               RID,
 	}
+	RID++
 
 	log.Info("Adding new route %s", r)
 	rm.Routes = append(rm.Routes, *r)

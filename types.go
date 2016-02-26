@@ -33,7 +33,7 @@ type Route struct {
 	AuthorizedCookie string
 	LastSeen         time.Time
 	ContainerIds     []string `xml:"ContainerIds"`
-	Expired          bool
+	ID               int64
 }
 
 // RouteMapping represents essentially the server state, including all

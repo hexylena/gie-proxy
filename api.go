@@ -14,7 +14,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid API key", http.StatusUnauthorized)
 		return
 	}
-	log.Debug("Received %s request to the API", r.Method)
+	log.Info("Received %s request to the API", r.Method)
 
 	// Request Processing
 	if r.Method == "GET" {
