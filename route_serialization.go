@@ -16,32 +16,37 @@ func (rm *RouteMapping) Save() {
 func (rm *RouteMapping) StoreToFile(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
+		log.Error("Could not create file %s", err)
 		return err
 	}
 	defer f.Close()
 
 	output, err := xml.MarshalIndent(rm, "", "    ")
 	if err != nil {
+		log.Error("Error marshalling %s", err)
 		return err
 	}
 
 	f.Write(output)
-
 	return nil
 }
 
 func (rm *RouteMapping) restoreFromFile(path string) error {
 	// If the file doesn't exist, just return.
 	if _, err := os.Stat(path); os.IsNotExist(err) {
+		log.Info("No file exists")
+		rm.Routes = make([]Route, 0)
 		return nil
 	}
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
+		log.Error("Error reading %s", err)
 		return err
 	}
 
 	if err := xml.Unmarshal(data, &rm); err != nil {
+		log.Error("Error unmarshalling %s", err)
 		return err
 	}
 

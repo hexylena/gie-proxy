@@ -58,7 +58,7 @@ func main() {
 	app.Action = func(c *cli.Context) {
 		setupLogging()
 		startServer(
-			c.String("sessionMap"),
+			c.String("storage"),
 			c.String("dockerAddr"),
 			c.String("cookieName"),
 			c.String("listenAddr"),
@@ -71,7 +71,7 @@ func main() {
 	app.Run(os.Args)
 }
 
-func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath, apiKey string, cleanInterval, noAccessThreshold int) {
+func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath, apiKey string, noAccessThreshold, cleanInterval int) {
 	// Logging
 
 	log.Debug("Starting up")
