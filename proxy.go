@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -23,7 +22,7 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Their requested URL must agree with our prefix
 	if !strings.HasPrefix(r.RequestURI, h.Frontend.Path) {
-		log.Notice("Bad request %s", r.RequestURI)
+		log.Warning("Bad request %s", r.RequestURI)
 		http.Error(w, "unknown backend", http.StatusBadRequest)
 		return
 	}
@@ -31,7 +30,7 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get their cookie
 	cookie, err := r.Cookie(h.Frontend.CookieName)
 	if err != nil {
-		log.Notice("Request lacked cookie")
+		log.Warning("Request lacked cookie")
 		http.Error(w, "unknown auth cookie", http.StatusUnauthorized)
 		return
 	}
@@ -42,6 +41,7 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cookie.Value,
 	)
 	if err != nil && err.Error() == "Could not find route" {
+		log.Warning("Could not find route")
 		http.Error(w, "unknown backend", http.StatusBadRequest)
 	}
 	// Now that we have a route, update when we last saw it.
@@ -65,8 +65,8 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go func(notify http.CloseNotifier, route *Route) {
 		// TODO: add a timer?
 		select {
+		// This signals that the HTTP conncetion closed
 		case <-notify.CloseNotify():
-			fmt.Println("HTTP connection just closed.")
 			// TODO: Many HTTP connections come through, need to make sure ALL
 			// are closed.
 			route.Expired = true
