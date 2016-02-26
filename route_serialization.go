@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"os"
 )
@@ -16,14 +17,14 @@ func (rm *RouteMapping) Save() {
 func (rm *RouteMapping) StoreToFile(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
-		log.Error("Could not create file %s", err)
+		log.Error(fmt.Sprintf("Could not create file %s", err))
 		return err
 	}
 	defer f.Close()
 
 	output, err := xml.MarshalIndent(rm, "", "    ")
 	if err != nil {
-		log.Error("Error marshalling %s", err)
+		log.Error(fmt.Sprintf("Error marshalling %s", err))
 		return err
 	}
 
@@ -41,14 +42,14 @@ func (rm *RouteMapping) restoreFromFile(path string) error {
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Error("Error reading %s", err)
+		log.Error(fmt.Sprintf("Error reading %s", err))
 		return err
 	}
 
 	// Unmarshal into a separate object, because we only want the routes
 	rm2 := &RouteMapping{}
 	if err := xml.Unmarshal(data, &rm2); err != nil {
-		log.Error("Error unmarshalling %s", err)
+		log.Error(fmt.Sprintf("Error unmarshalling %s", err))
 		return err
 	}
 

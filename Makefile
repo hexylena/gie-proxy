@@ -15,12 +15,16 @@ deps:
 complexity: $(SRC) deps
 	gocyclo -over 10 $(SRC)
 
+vet: $(src) deps
+	go vet
+
 gofmt: $(src)
 	find $(SRC) -exec gofmt -w '{}' \;
 
-
-lint: $(SRC) complexity deps gofmt
+lint: $(SRC) deps
 	golint $(SRC)
+
+qc: lint vet complexity
 
 test: $(SRC) deps gofmt
 	go test -v ./...
