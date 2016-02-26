@@ -72,9 +72,7 @@ func main() {
 }
 
 func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath, apiKey string, noAccessThreshold, cleanInterval int) {
-	// Logging
-
-	log.Debug("Starting up")
+	log.Info("Starting up")
 	// Load up route mapping
 	rm := &RouteMapping{
 		Storage:           sessionMap,

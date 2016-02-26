@@ -26,7 +26,7 @@ func shouldUpgradeWebsocket(r *http.Request) bool {
 	return upgradeWebsocket
 }
 
-func plumbWebsocket(w http.ResponseWriter, r *http.Request) error {
+func plumbWebsocket(w http.ResponseWriter, r *http.Request, route **Route) error {
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
@@ -45,11 +45,11 @@ func plumbWebsocket(w http.ResponseWriter, r *http.Request) error {
 		log.Warning("writing WebSocket request to backend server failed: %v", err)
 		return errors.New("dead-backend")
 	}
-	CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)))
+	CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)), route)
 	return nil
 }
 
-func plumbHTTP(h *requestHandler, w http.ResponseWriter, r *http.Request) error {
+func plumbHTTP(h *requestHandler, w http.ResponseWriter, r *http.Request, route **Route) error {
 	resp, err := h.Transport.RoundTrip(r)
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -61,6 +61,7 @@ func plumbHTTP(h *requestHandler, w http.ResponseWriter, r *http.Request) error 
 			w.Header().Add(k, vv)
 		}
 	}
+	(*route).Seen()
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 	resp.Body.Close()
@@ -68,32 +69,33 @@ func plumbHTTP(h *requestHandler, w http.ResponseWriter, r *http.Request) error 
 }
 
 // Copy from src buffer to destination buffer. One way.
-func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter) {
+func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter, route **Route) {
 	buf := make([]byte, 40*1024)
 	for {
 		n, err := src.Read(buf)
 		if err != nil && err != io.EOF {
-			log.Error("Read failed: %v", err)
+			//log.Error("Read failed: %v", err)
 			return
 		}
 		if n == 0 {
 			return
 		}
+		(*route).Seen()
 		dest.Write(buf[0:n])
 		dest.Flush()
 	}
 }
 
 // CopyBidir copies the first buffer to the second and vice versa.
-func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWriteCloser, rw2 *bufio.ReadWriter) {
+func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWriteCloser, rw2 *bufio.ReadWriter, route **Route) {
 	finished := make(chan bool)
 	go func() {
-		Copy(rw2, rw1)
+		Copy(rw2, rw1, route)
 		conn2.Close()
 		finished <- true
 	}()
 	go func() {
-		Copy(rw1, rw2)
+		Copy(rw1, rw2, route)
 		conn1.Close()
 		finished <- true
 	}()
