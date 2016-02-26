@@ -36,7 +36,7 @@ func InitializeRouteMapper(rm *RouteMapping) {
 	if err != nil {
 		panic(err)
 	}
-	log.Debug("Restored %d RouteMapper routes from storage", len(rm.Routes))
+	log.Info("Restored %d RouteMapper routes from storage", len(rm.Routes))
 
 	client, err := docker.NewClient(rm.DockerEndpoint)
 	if err != nil {
@@ -44,7 +44,7 @@ func InitializeRouteMapper(rm *RouteMapping) {
 		panic(err)
 	}
 	rm.client = client
-	log.Debug("Connected RouteMapper to Docker")
+	log.Info("Connected RouteMapper to Docker")
 
 	rm.RegisterCleaner()
 }
@@ -65,7 +65,7 @@ func (rm *RouteMapping) RemoveDeadContainers() {
 // KillContainers kills all containers associated with a route
 func (r *Route) KillContainers(rm *RouteMapping) {
 	for _, containerID := range r.ContainerIds {
-		log.Debug("Killing %s", containerID)
+		log.Info("Killing %s", containerID)
 		err := rm.client.KillContainer(docker.KillContainerOptions{
 			ID:     containerID,
 			Signal: 9,
@@ -94,9 +94,7 @@ func (rm *RouteMapping) RegisterCleaner() {
 // /ipython routes that map to different backends, based on who is
 // requesting.
 func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
-	log.Debug("url: %s, cookie: %s", url, cookie)
 	for _, x := range rm.Routes {
-		log.Debug("FrontendPath %s hasPref %s isAuth %s", x.FrontendPath, strings.HasPrefix(url, x.FrontendPath), x.IsAuthorized(cookie))
 		if strings.HasPrefix(url, x.FrontendPath) && x.IsAuthorized(cookie) {
 			return &x, nil
 		}
@@ -114,7 +112,7 @@ func (rm *RouteMapping) AddRoute(url string, backend string, cookie string, cont
 		ContainerIds:     containers,
 	}
 
-	log.Debug("Adding new route %s", r)
+	log.Info("Adding new route %s", r)
 	rm.Routes = append(rm.Routes, *r)
 	// After we add a route, we update the storage map
 	rm.Save()
