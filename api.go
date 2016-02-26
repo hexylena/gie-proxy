@@ -26,14 +26,14 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err := decoder.Decode(&route)
 		if err != nil {
 			log.Error(fmt.Sprintf("Error unmarshalling %s", err))
-			http.Error(w, "Invalid Route data", http.StatusBadRequest)
+			http.Error(w, "Invalid Route Data", http.StatusBadRequest)
 			return
 		}
 
 		// Seems like this should automatically be a decode exception?
 		if route.FrontendPath == "" || route.BackendAddr == "" || route.AuthorizedCookie == "" {
 			log.Info("An invalid route was attempted [%s %s %s %s]", route.FrontendPath, route.BackendAddr, route.AuthorizedCookie, route.ContainerIds)
-			http.Error(w, "Invalid Route data", http.StatusBadRequest)
+			http.Error(w, "Invalid Route Data", http.StatusBadRequest)
 			return
 		}
 
