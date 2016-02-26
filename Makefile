@@ -6,11 +6,8 @@ TARGET := gxproxy-${GOOS}-${GOARCH}
 all: $(TARGET)
 
 deps:
-	go get github.com/golang/lint/golint
-	go get github.com/fzipp/gocyclo
-	go get github.com/op/go-logging
-	go get github.com/fsouza/go-dockerclient
-	go get github.com/codegangsta/cli
+	go install github.com/Masterminds/glide/...
+	glide install
 
 complexity: $(SRC) deps
 	gocyclo -over 10 $(SRC)
