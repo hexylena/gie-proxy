@@ -12,7 +12,7 @@ import (
 
 // String representation of Route struct
 func (r Route) String() string {
-	return fmt.Sprintf("[%d] %s->%s (LastSeen @ %s, %d containers associated)", r.ID, r.FrontendPath, r.BackendAddr, r.LastSeen, len(r.ContainerIds))
+	return fmt.Sprintf("%s->%s (LastSeen @ %s, %d containers associated)", r.FrontendPath, r.BackendAddr, r.LastSeen, len(r.ContainerIds))
 }
 
 // IsAuthorized checks if a user's cookie is valid for a given route object.

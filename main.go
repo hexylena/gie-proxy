@@ -86,10 +86,9 @@ func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath,
 
 	// Build the frontend
 	f := &frontend{
-		Addr:       listenAddr,
-		Path:       listenPath,
-		APIKey:     apiKey,
-		CookieName: cookieName,
+		Addr:   listenAddr,
+		Path:   listenPath,
+		APIKey: apiKey,
 	}
 	// Start our proxy
 	log.Info("Starting frontend ...")
