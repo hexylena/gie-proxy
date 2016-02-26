@@ -25,7 +25,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		route := new(Route)
 		err := decoder.Decode(&route)
 		if err != nil {
-			log.Error("Error unmarshalling %s", err)
+			log.Error(fmt.Sprintf("Error unmarshalling %s", err))
 			http.Error(w, "Invalid Route data", http.StatusBadRequest)
 			return
 		}

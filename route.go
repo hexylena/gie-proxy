@@ -10,8 +10,6 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-var RID int64 = 0
-
 // String representation of Route struct
 func (r Route) String() string {
 	return fmt.Sprintf("[%d] %s->%s (LastSeen @ %s, %d containers associated)", r.ID, r.FrontendPath, r.BackendAddr, r.LastSeen, len(r.ContainerIds))
@@ -96,7 +94,7 @@ func (rm *RouteMapping) RegisterCleaner() {
 // /ipython routes that map to different backends, based on who is
 // requesting.
 func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
-	for idx, _ := range rm.Routes {
+	for idx := range rm.Routes {
 		if strings.HasPrefix(url, rm.Routes[idx].FrontendPath) && rm.Routes[idx].IsAuthorized(cookie) {
 			return &rm.Routes[idx], nil
 		}
@@ -112,9 +110,7 @@ func (rm *RouteMapping) AddRoute(url string, backend string, cookie string, cont
 		AuthorizedCookie: cookie,
 		LastSeen:         time.Now(),
 		ContainerIds:     containers,
-		ID:               RID,
 	}
-	RID++
 
 	log.Info("Adding new route %s", r)
 	rm.Routes = append(rm.Routes, *r)
