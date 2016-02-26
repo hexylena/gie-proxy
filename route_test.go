@@ -3,7 +3,36 @@ package main
 import (
 	//"errors"
 	"testing"
+	"time"
 )
+
+func TestSeen(t *testing.T) {
+	type testcase struct {
+		FakeNow time.Time
+		Result  bool
+		Msg     string
+	}
+
+	tests := []testcase{
+		{FakeNow: time.Now(), Result: true, Msg: "Up-to-date"},
+		{FakeNow: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC), Result: false, Msg: "Out of date"},
+	}
+
+	for _, tc := range tests {
+		tmpRoute := &Route{
+			LastSeen: tc.FakeNow,
+		}
+		if tmpRoute.LastSeen != tc.FakeNow {
+			t.Error("Time wasn't set")
+		}
+		// See it
+		tmpRoute.Seen()
+		// Check if recent
+		if time.Now().Sub(tmpRoute.LastSeen).Seconds() > 10 {
+			t.Error("Time wasn't updated saw", tmpRoute.LastSeen, "expected", time.Now())
+		}
+	}
+}
 
 func TestIsAuthorized(t *testing.T) {
 	type testcase struct {
