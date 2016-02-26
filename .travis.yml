@@ -13,4 +13,6 @@ script:
     - make lint
     - make test
 after_success:
-    - bash <(curl -s https://codecov.io/bash)
+    - go get github.com/axw/gocov/gocov
+    - go get github.com/mattn/goveralls
+    - goveralls -repotoken $COVERALLS_TOKEN
