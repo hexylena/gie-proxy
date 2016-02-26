@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -53,9 +53,8 @@ func InitializeRouteMapper(rm *RouteMapping) {
 // killed. The function kills that route's containers, removes the route, and
 // saves to file.
 func (rm *RouteMapping) RemoveDeadContainers() {
-	log.Debug("Removing expired containers")
 	for _, route := range rm.Routes {
-		if route.Expired {
+		if route.Expired || time.Since(route.LastSeen) > rm.NoAccessThreshold {
 			log.Info("Found expired route %s", route)
 			rm.RemoveRoute(&route)
 		}
@@ -84,6 +83,7 @@ func (rm *RouteMapping) RegisterCleaner() {
 	ticker := time.NewTicker(rm.CleanInterval)
 	go func(routeMapping *RouteMapping) {
 		for range ticker.C {
+			log.Info("Running goroutines: %d", runtime.NumGoroutine())
 			rm.RemoveDeadContainers()
 		}
 	}(rm)
@@ -96,6 +96,7 @@ func (rm *RouteMapping) RegisterCleaner() {
 func (rm *RouteMapping) FindRoute(url string, cookie string) (*Route, error) {
 	log.Debug("url: %s, cookie: %s", url, cookie)
 	for _, x := range rm.Routes {
+		log.Debug("FrontendPath %s hasPref %s isAuth %s", x.FrontendPath, strings.HasPrefix(url, x.FrontendPath), x.IsAuthorized(cookie))
 		if strings.HasPrefix(url, x.FrontendPath) && x.IsAuthorized(cookie) {
 			return &x, nil
 		}
@@ -126,7 +127,7 @@ func (rm *RouteMapping) RemoveRoute(route *Route) {
 	// Then remove the route proper
 	for idx, x := range rm.Routes {
 		// TODO
-		if reflect.DeepEqual(*route, x) {
+		if route.FrontendPath == x.FrontendPath && route.BackendAddr == x.BackendAddr && route.AuthorizedCookie == x.AuthorizedCookie {
 			rm.Routes = rm.Routes[:idx+copy(rm.Routes[idx:], rm.Routes[idx+1:])]
 			return
 		}
