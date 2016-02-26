@@ -24,7 +24,6 @@ func (r *Route) IsAuthorized(cookie string) bool {
 
 // Seen notifies the route object that it was seen recently
 func (r *Route) Seen() {
-	log.Debug("%s seen %s", r.LastSeen, time.Now())
 	r.LastSeen = time.Now()
 }
 
