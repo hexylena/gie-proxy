@@ -24,7 +24,7 @@ lint: $(SRC) deps
 qc: lint vet complexity
 
 test: $(SRC) deps gofmt
-	go test -v ./...
+	go test -v $(glide novendor)
 
 $(TARGET): $(SRC) deps gofmt
 	go build -o $@
