@@ -53,7 +53,7 @@ func InitializeRouteMapper(rm *RouteMapping) {
 // killed. The function kills that route's containers, removes the route, and
 // saves to file.
 func (rm *RouteMapping) RemoveDeadContainers() {
-	log.Info("Removing expired containers")
+	log.Debug("Removing expired containers")
 	for _, route := range rm.Routes {
 		if route.Expired {
 			log.Info("Found expired route %s", route)
