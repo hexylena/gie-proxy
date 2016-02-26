@@ -1,0 +1,28 @@
+hash: 356fef346b84ec60202f472c71c681a9af48c5fd59cacf484d888e15b3707396
+updated: 2016-02-26T15:32:34.977670359Z
+imports:
+- name: github.com/codegangsta/cli
+  version: 5db74198dee1cfe60cf06a611d03a420361baad6
+- name: github.com/fsouza/go-dockerclient
+  version: a49c8269a6899cae30da1f8a4b82e0ce945f9967
+  subpackages:
+  - external/github.com/docker/docker/opts
+  - external/github.com/docker/docker/pkg/archive
+  - external/github.com/docker/docker/pkg/fileutils
+  - external/github.com/docker/docker/pkg/homedir
+  - external/github.com/docker/docker/pkg/stdcopy
+  - external/github.com/hashicorp/go-cleanhttp
+  - external/github.com/Sirupsen/logrus
+  - external/github.com/docker/docker/pkg/idtools
+  - external/github.com/docker/docker/pkg/ioutils
+  - external/github.com/docker/docker/pkg/pools
+  - external/github.com/docker/docker/pkg/promise
+  - external/github.com/docker/docker/pkg/system
+  - external/github.com/docker/docker/pkg/longpath
+  - external/github.com/opencontainers/runc/libcontainer/user
+  - external/golang.org/x/sys/unix
+  - external/golang.org/x/net/context
+  - external/github.com/docker/go-units
+- name: github.com/op/go-logging
+  version: d2e44aa77b7195c0ef782189985dd8550e22e4de
+devImports: []
