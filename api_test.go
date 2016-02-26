@@ -22,6 +22,13 @@ func get(ts *httptest.Server, path string) (string, int, error) {
 	}
     return string(data), res.StatusCode, nil
 }
+type testcase struct {
+    Path string
+    Body []byte
+    ExpectedCode int
+    ExpectedMsg string
+    ExpectedErr error
+}
 
 func post(ts *httptest.Server, path string, jsonStr []byte) (string, int, error) {
     req, err := http.NewRequest("POST", ts.URL + path, bytes.NewBuffer(jsonStr))
@@ -36,6 +43,20 @@ func post(ts *httptest.Server, path string, jsonStr []byte) (string, int, error)
         return "", 0, err
 	}
     return string(data), res.StatusCode, nil
+}
+
+func apiTest(data string, code int, err error, tc testcase, t *testing.T) {
+    if err != tc.ExpectedErr {
+        t.Error("Request to", tc.Path, "had error", err, "expected error", tc.ExpectedErr)
+    }
+
+    if code != tc.ExpectedCode {
+        t.Error("Request to", tc.Path, "had code", code, "expected code", tc.ExpectedCode)
+    }
+
+    if data != tc.ExpectedMsg {
+        t.Error("Request to", tc.Path, "had body", data, "expected body", tc.ExpectedMsg)
+    }
 }
 
 func TestApiServeHTTP_get(t *testing.T) {
@@ -59,32 +80,16 @@ func TestApiServeHTTP_get(t *testing.T) {
 	ts := httptest.NewServer(tsh)
     defer ts.Close()
 
-    type testcase struct {
-        Path string
-        ExpectedCode int
-        ExpectedMsg string
-        ExpectedErr error
-    }
-
     tests := []testcase{
-        {"/api", 401, "Invalid API key\n", nil},
-        {"/api?api_key=", 401, "Invalid API key\n", nil},
-        {"/api?api_key=supersecret", 200, "[]", nil},
+        {"/api", nil, 401, "Invalid API key\n", nil},
+        {"/api?api_key=", nil, 401, "Invalid API key\n", nil},
+        {"/api?api_key=supersecret", nil, 200, "[]", nil},
     }
 
     for _, tc := range tests {
         data, code, err := get(ts, tc.Path)
-        if err != tc.ExpectedErr {
-            t.Error("Request to", tc.Path, "had error", err, "expected error", tc.ExpectedErr)
-        }
 
-        if code != tc.ExpectedCode {
-            t.Error("Request to", tc.Path, "had code", code, "expected code", tc.ExpectedCode)
-        }
-
-        if data != tc.ExpectedMsg {
-            t.Error("Request to", tc.Path, "had body", data, "expected body", tc.ExpectedMsg)
-        }
+        apiTest(data, code, err, tc, t)
     }
 
     now := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
@@ -96,24 +101,17 @@ func TestApiServeHTTP_get(t *testing.T) {
         ContainerIds: []string{"deadbeef", "cafebabe" },
     }
     routes := []Route{*route}
-    tc_data_route, err := json.MarshalIndent(route, "", "    ")
+    tcDataRoute, err := json.MarshalIndent(route, "", "    ")
     if err != nil {
         t.Error("Could not serialize test case route", err)
     }
-    tc_data_routes, err := json.MarshalIndent(routes, "", "    ")
+    tcDataRoutes, err := json.MarshalIndent(routes, "", "    ")
     if err != nil {
         t.Error("Could not serialize test case route", err)
     }
 
-    type testcase2 struct {
-        Path string
-        Body []byte
-        ExpectedCode int
-        ExpectedMsg string
-        ExpectedErr error
-    }
 
-    tests2 := []testcase2{
+    tests2 := []testcase{
         {"/api?api_key=supersecret", nil, 400, "Invalid Route Data\n", nil},
         {"/api?api_key=supersecret", []byte("asdf"), 400, "Invalid Route Data\n", nil},
         {"/api?api_key=supersecret", []byte("{\"FrontendPath\": \"\"}"), 400, "Invalid Route Data\n", nil},
@@ -121,21 +119,11 @@ func TestApiServeHTTP_get(t *testing.T) {
 
     for _, tc := range tests2 {
         data, code, err := post(ts, tc.Path, tc.Body)
-        if err != tc.ExpectedErr {
-            t.Error("Request to", tc.Path, "had error", err, "expected error", tc.ExpectedErr)
-        }
-
-        if code != tc.ExpectedCode {
-            t.Error("Request to", tc.Path, "had code", code, "expected code", tc.ExpectedCode)
-        }
-
-        if data != tc.ExpectedMsg {
-            t.Error("Request to", tc.Path, "had body", data, "expected body", tc.ExpectedMsg)
-        }
+        apiTest(data, code, err, tc, t)
     }
 
-    tests3 := []testcase2{
-        {"/api?api_key=supersecret", tc_data_route, 200, string(tc_data_routes), nil},
+    tests3 := []testcase{
+        {"/api?api_key=supersecret", tcDataRoute, 200, string(tcDataRoutes), nil},
     }
     for _, tc := range tests3 {
         _, code, err := post(ts, tc.Path, tc.Body)
@@ -145,16 +133,6 @@ func TestApiServeHTTP_get(t *testing.T) {
             }
         }
         data, code, err := get(ts, tc.Path)
-        if err != tc.ExpectedErr {
-            t.Error("Request to", tc.Path, "had error", err, "expected error", tc.ExpectedErr)
-        }
-
-        if code != tc.ExpectedCode {
-            t.Error("Request to", tc.Path, "had code", code, "expected code", tc.ExpectedCode)
-        }
-
-        if data != tc.ExpectedMsg {
-            t.Error("Request to", tc.Path, "had body", data, "expected body", tc.ExpectedMsg)
-        }
+        apiTest(data, code, err, tc, t)
     }
 }
