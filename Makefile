@@ -19,13 +19,13 @@ gofmt: $(src)
 	find $(SRC) -exec gofmt -w '{}' \;
 
 
-lint: $(SRC) complexity deps
+lint: $(SRC) complexity deps gofmt
 	golint $(SRC)
 
-test: $(SRC) deps
+test: $(SRC) deps gofmt
 	go test -v ./...
 
-$(TARGET): $(SRC) deps
+$(TARGET): $(SRC) deps gofmt
 	go build -o $@
 
 clean:

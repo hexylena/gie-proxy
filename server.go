@@ -16,7 +16,6 @@ func (f *frontend) Start(rm *RouteMapping) {
 		RouteMapping: rm,
 		Frontend:     f,
 	}
-	rm.RegisterCleaner()
 
 	var apiHandler http.Handler = &apiHandler{
 		Transport: &http.Transport{

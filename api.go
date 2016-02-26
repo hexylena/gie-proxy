@@ -14,7 +14,7 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid API key", http.StatusUnauthorized)
 		return
 	}
-	log.Debug("Received API request")
+	log.Debug("Received %s request to the API", r.Method)
 
 	// Request Processing
 	if r.Method == "GET" {
@@ -25,12 +25,13 @@ func (h *apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		route := new(Route)
 		err := decoder.Decode(&route)
 		if err != nil {
+			log.Error("Error unmarshalling %s", err)
 			http.Error(w, "Invalid Route data", http.StatusBadRequest)
 			return
 		}
 
 		// Seems like this should automatically be a decode exception?
-		if route.FrontendPath == "" || route.BackendAddr == "" || route.AuthorizedCookie == "" || len(route.ContainerIds) == 0 {
+		if route.FrontendPath == "" || route.BackendAddr == "" || route.AuthorizedCookie == "" {
 			log.Info("An invalid route was attempted [%s %s %s %s]", route.FrontendPath, route.BackendAddr, route.AuthorizedCookie, route.ContainerIds)
 			http.Error(w, "Invalid Route data", http.StatusBadRequest)
 			return

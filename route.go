@@ -30,13 +30,13 @@ func (rm RouteMapping) String() string {
 	return fmt.Sprintf("RouteMapping <%d routes under %s>", len(rm.Routes), rm.AuthCookieName)
 }
 
-// NewRouteMapping automatically loads the RouteMapping object from storage
+// InitializeRouteMapper automatically loads the RouteMapping object from storage
 func InitializeRouteMapper(rm *RouteMapping) {
 	err := rm.restoreFromFile(rm.Storage)
 	if err != nil {
 		panic(err)
 	}
-	log.Debug("Restored RouteMapper routes from storage")
+	log.Debug("Restored %d RouteMapper routes from storage", len(rm.Routes))
 
 	client, err := docker.NewClient(rm.DockerEndpoint)
 	if err != nil {
@@ -45,13 +45,15 @@ func InitializeRouteMapper(rm *RouteMapping) {
 	}
 	rm.client = client
 	log.Debug("Connected RouteMapper to Docker")
+
+	rm.RegisterCleaner()
 }
 
 // RemoveDeadContainers finds containers with no traffic which should be
 // killed. The function kills that route's containers, removes the route, and
 // saves to file.
 func (rm *RouteMapping) RemoveDeadContainers() {
-	log.Debug("Removing expired containers")
+	log.Info("Removing expired containers")
 	for _, route := range rm.Routes {
 		if route.Expired {
 			log.Info("Found expired route %s", route)
@@ -79,7 +81,7 @@ func (r *Route) KillContainers(rm *RouteMapping) {
 // checks if there are any expired containers to kill
 func (rm *RouteMapping) RegisterCleaner() {
 	// Register our new
-	ticker := time.NewTicker(time.Second * rm.CleanInterval)
+	ticker := time.NewTicker(rm.CleanInterval)
 	go func(routeMapping *RouteMapping) {
 		for range ticker.C {
 			rm.RemoveDeadContainers()
