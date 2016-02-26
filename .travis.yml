@@ -1,9 +1,7 @@
 ---
 language: go
 go:
-    - 1.4.2
     - 1.5.1
-    - release
 install:
     - go get github.com/op/go-logging
     - go get github.com/fsouza/go-dockerclient
