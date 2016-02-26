@@ -45,10 +45,14 @@ func (rm *RouteMapping) restoreFromFile(path string) error {
 		return err
 	}
 
-	if err := xml.Unmarshal(data, &rm); err != nil {
+	// Unmarshal into a separate object, because we only want the routes
+	rm2 := &RouteMapping{}
+	if err := xml.Unmarshal(data, &rm2); err != nil {
 		log.Error("Error unmarshalling %s", err)
 		return err
 	}
+
+	rm.Routes = rm2.Routes
 
 	return nil
 }
