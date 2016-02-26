@@ -22,9 +22,6 @@ gofmt: $(src)
 lint: $(SRC) deps
 	golint $(SRC)
 
-coverage.txt: $(SRC)
-	go test -coverprofile coverage.txt $(glide novendor)
-
 qc: lint vet complexity
 
 test: $(SRC) deps gofmt
