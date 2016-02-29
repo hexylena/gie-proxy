@@ -16,7 +16,10 @@ func get(ts *httptest.Server, path string) (string, int, error) {
 		return "", 0, err
 	}
 	data, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	if err != nil {
+		return "", 0, err
+	}
+	err = res.Body.Close()
 	if err != nil {
 		return "", 0, err
 	}
@@ -39,7 +42,10 @@ func post(ts *httptest.Server, path string, jsonStr []byte) (string, int, error)
 		return "", 0, err
 	}
 	data, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	if err != nil {
+		return "", 0, err
+	}
+	err = res.Body.Close()
 	if err != nil {
 		return "", 0, err
 	}
