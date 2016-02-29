@@ -45,7 +45,7 @@ func post(ts *httptest.Server, path string, jsonStr []byte) (string, int, error)
 	if err != nil {
 		return "", 0, err
 	}
-    err = res.Body.Close()
+	err = res.Body.Close()
 	if err != nil {
 		return "", 0, err
 	}
