@@ -33,19 +33,26 @@ func plumbWebsocket(w http.ResponseWriter, r *http.Request, route **Route) error
 		return errors.New("no-hijack")
 	}
 	conn, bufrw, err := hj.Hijack()
-	defer conn.Close()
 	conn2, err := net.Dial("tcp", r.URL.Host)
 	if err != nil {
 		http.Error(w, "couldn't connect to backend server", http.StatusServiceUnavailable)
 		return errors.New("dead-backend")
 	}
-	defer conn2.Close()
 	err = r.Write(conn2)
 	if err != nil {
 		log.Warning("writing WebSocket request to backend server failed: %v", err)
 		return errors.New("dead-backend")
 	}
 	CopyBidir(conn, bufrw, conn2, bufio.NewReadWriter(bufio.NewReader(conn2), bufio.NewWriter(conn2)), route)
+	err = conn.Close()
+
+	if err != nil {
+		log.Warning("Could not close stream", err)
+	}
+	err = conn2.Close()
+	if err != nil {
+		log.Warning("Could not close stream", err)
+	}
 	return nil
 }
 
@@ -63,8 +70,14 @@ func plumbHTTP(h *requestHandler, w http.ResponseWriter, r *http.Request, route 
 	}
 	(*route).Seen()
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
-	resp.Body.Close()
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		log.Warning("Could not copy bytes", err)
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		log.Warning("Could not close response", err)
+	}
 	return nil
 }
 
@@ -81,8 +94,15 @@ func Copy(dest *bufio.ReadWriter, src *bufio.ReadWriter, route **Route) {
 			return
 		}
 		(*route).Seen()
-		dest.Write(buf[0:n])
-		dest.Flush()
+		_, err = dest.Write(buf[0:n])
+		if err != nil && err != io.EOF {
+			log.Warning("Could not write to dest", err)
+		}
+		err = dest.Flush()
+
+		if err != nil && err != io.EOF {
+			log.Warning("Could not flush to dest", err)
+		}
 	}
 }
 
@@ -91,12 +111,12 @@ func CopyBidir(conn1 io.ReadWriteCloser, rw1 *bufio.ReadWriter, conn2 io.ReadWri
 	finished := make(chan bool)
 	go func() {
 		Copy(rw2, rw1, route)
-		conn2.Close()
+		_ = conn2.Close()
 		finished <- true
 	}()
 	go func() {
 		Copy(rw1, rw2, route)
-		conn1.Close()
+		_ = conn1.Close()
 		finished <- true
 	}()
 	<-finished

@@ -68,7 +68,7 @@ func main() {
 			c.Int("cleanInterval"),
 		)
 	}
-	app.Run(os.Args)
+	_ = app.Run(os.Args)
 }
 
 func startServer(sessionMap, dockerEndpoint, cookieName, listenAddr, listenPath, apiKey string, noAccessThreshold, cleanInterval int) {
