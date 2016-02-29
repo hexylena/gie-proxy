@@ -10,7 +10,8 @@ import (
 // Save is a convenience function to automatically serialize to default
 // storage location.
 func (rm *RouteMapping) Save() {
-	rm.StoreToFile(rm.Storage)
+	// Already handled errors in StoreToFile()'s logging
+	_ = rm.StoreToFile(rm.Storage)
 }
 
 // StoreToFile serializes the routemappings object to an XML file.
@@ -20,7 +21,6 @@ func (rm *RouteMapping) StoreToFile(path string) error {
 		log.Error(fmt.Sprintf("Could not create file %s", err))
 		return err
 	}
-	defer f.Close()
 
 	output, err := xml.MarshalIndent(rm, "", "    ")
 	if err != nil {
@@ -28,7 +28,17 @@ func (rm *RouteMapping) StoreToFile(path string) error {
 		return err
 	}
 
-	f.Write(output)
+	_, err = f.Write(output)
+	if err != nil {
+		log.Error(fmt.Sprintf("Error writing %s", err))
+		return err
+	}
+
+	err = f.Close()
+	if err != nil {
+		log.Error(fmt.Sprintf("Error closing %s", err))
+		return err
+	}
 	return nil
 }
 
