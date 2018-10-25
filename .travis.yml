@@ -5,7 +5,7 @@ go:
 install:
     - go get github.com/op/go-logging
     - go get github.com/fsouza/go-dockerclient
-    - go get github.com/golang/lint/golint
+    - go get golang.org/x/lint/golint
     - go get github.com/fzipp/gocyclo
 script:
     - make lint
